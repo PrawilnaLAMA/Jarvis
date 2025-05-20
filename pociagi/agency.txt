@@ -1,0 +1,2 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_phone,agency_fare_url,ticketing_deep_link_id
+279,Koleje Dolnośląskie S.A.,https://kolejedolnoslaskie.pl/,Europe/Warsaw,+48 76 742 11 12,https://bilet.kolejedolnoslaskie.eu,279
