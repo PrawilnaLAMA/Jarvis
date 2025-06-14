@@ -1,11 +1,9 @@
 import requests
-import os
-from dotenv import load_dotenv
+from core.config import discord_config
 
 class DiscordClient:
     def __init__(self):
-        load_dotenv()
-        self.token = os.getenv("JARVIS_TOKEN")
+        self.token = discord_config["jarvis_token"]
         self.headers = {'authorization': f'{self.token}'}
 
     def get_messages(self, channel_id):

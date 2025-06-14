@@ -1,8 +1,8 @@
 import sys
 import os
 import configparser
-from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.config import discord_config
 
 
 from api.discord_client import DiscordClient
@@ -37,14 +37,13 @@ def main():
     config = configparser.ConfigParser()
     config.read(os.path.join(os.path.dirname(__file__), '../config.txt'))
 
-    # Load environment variables
-    load_dotenv()
-    channel_id = os.getenv('DISCORD_CHANNEL_ID')
+    # Example usage of configuration
+    DISCORD_CHANNEL_ID = discord_config["discord_channel_id"]
 
     discord_client = DiscordClient()
     command_handler = CommandHandler(discord_client)
     voice_reader = VoiceReader(command_handler)
-    discord_reader = DiscordReader(discord_client, command_handler, channel_id)
+    discord_reader = DiscordReader(discord_client, command_handler, DISCORD_CHANNEL_ID)
 
     # Uruchomienie VoiceCommand w osobnym wątku
     threading.Thread(target=voice_reader.execute, daemon=True).start()
