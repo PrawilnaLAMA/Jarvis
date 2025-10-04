@@ -5,11 +5,13 @@ import threading
 from gtts import gTTS
 from playsound import playsound
 import os
+from commands.ai_command import AICommand
 
 class VoiceReader:
     def __init__(self, command_handler):
         self.recognizer = sr.Recognizer()
         self.command_handler = command_handler
+        self.ai_command = AICommand()
 
     def say(self, text):
         def speak():
@@ -45,6 +47,12 @@ class VoiceReader:
             try:
                 komenda_glosowa = self.listen_microphone()
                 if komenda_glosowa:
+                    # AI: obsługa "powiedz mi" głosowo
+                    ai_response = self.ai_command.execute(komenda_glosowa)
+                    if ai_response:
+                        self.say(ai_response)
+                        logging.info(f"Odpowiedź AI: {ai_response}")
+                        continue
                     response = self.command_handler.handle_command(komenda_glosowa)
                     if response:
                         self.say(response)

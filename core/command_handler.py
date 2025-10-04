@@ -4,6 +4,7 @@ from commands.google_command import GoogleCommand
 from commands.time_command import TimeCommand
 from commands.train_command import TrainCommand
 from commands.discord_message_command import DiscordMessageCommand
+from commands.ai_command import AICommand
 
 class CommandHandler:
     def __init__(self, discord_client):
@@ -15,6 +16,7 @@ class CommandHandler:
             "time": TimeCommand(),
             "train": TrainCommand(),
             "discord_message": DiscordMessageCommand(),
+            "ai": AICommand(),
         }
 
     def handle_command(self, message):

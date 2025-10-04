@@ -39,7 +39,7 @@ def main():
 
     # Example usage of configuration
     DISCORD_CHANNEL_ID = discord_config["discord_channel_id"]
-
+    print(f"Using Discord Channel ID: {DISCORD_CHANNEL_ID}")
     discord_client = DiscordClient()
     command_handler = CommandHandler(discord_client)
     voice_reader = VoiceReader(command_handler)

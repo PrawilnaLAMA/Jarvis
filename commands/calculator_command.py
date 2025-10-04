@@ -4,7 +4,7 @@ class CalculatorCommand:
     def execute(self, message):
         try:
             parts = message.split()
-            if not is_similar(parts[0].lower(), "calculate", threshold=0.7):
+            if not is_similar(parts[0].lower(), "oblicz", threshold=0.7):
                 return None
 
             num1 = float(parts[1])
