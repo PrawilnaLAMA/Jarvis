@@ -14,6 +14,5 @@ discord_config = {
         if key.startswith("CHANNEL_")
     },
     "discord_channel_id": os.getenv("DISCORD_CHANNEL_ID"),
-    "jarvis_token": os.getenv("JARVIS_TOKEN")
 }
 

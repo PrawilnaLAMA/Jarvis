@@ -7,8 +7,8 @@ from commands.discord_message_command import DiscordMessageCommand
 from commands.ai_command import AICommand
 
 class CommandHandler:
-    def __init__(self, discord_client):
-        self.discord_client = discord_client
+    def __init__(self):
+        from commands.shutdown_command import ShutdownCommand
         self.commands = {
             "youtube": YouTubeCommand(),
             "calculate": CalculatorCommand(),
@@ -17,6 +17,7 @@ class CommandHandler:
             "train": TrainCommand(),
             "discord_message": DiscordMessageCommand(),
             "ai": AICommand(),
+            "shutdown": ShutdownCommand(),
         }
 
     def handle_command(self, message):
