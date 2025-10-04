@@ -3,29 +3,26 @@ from difflib import SequenceMatcher
 import logging
 import re
 from core.config import discord_config
-
+from core.separation_from_context import SeparationFromContext
+from core.generate_messages import GenerateMessages
 # Use the imported configuration
 CHANNEL_IDS = discord_config["channel_ids"]
 USER_TOKEN = discord_config["user_token"]
 HEADERS = {'authorization': f'{USER_TOKEN}'}
 
 class DiscordMessageCommand:
-    def __init__(self):
-        pass
-
-    def execute(self, message):
+    def __call__(self, message):
         match = re.search(r"^wyślij wiadomość\s+do\s+(\S+)\s+(.*)$", message.lower())
 
         if not match:
             return None
-        
-        print("test0")
 
-        recipient = match.group(1)  
-        content = match.group(2)  
+        ai = SeparationFromContext()
+        generator = GenerateMessages()
+        recipient = ai.extract_recipient(message) 
+        content = generator.generate_message_content(message)
         
         if recipient:
-            print("test1")
             channel_id = None
             for key in CHANNEL_IDS.keys():
                 if SequenceMatcher(None, recipient.upper(), key).ratio() >= 0.7:
@@ -39,7 +36,7 @@ class DiscordMessageCommand:
             # Dodaj obsługę odpowiedzi i błędów:
             response = requests.post(
                 f'https://discord.com/api/v9/channels/{channel_id}/messages', 
-                json=payload,  # użyj json zamiast data
+                json=payload,  
                 headers=HEADERS
             )
 

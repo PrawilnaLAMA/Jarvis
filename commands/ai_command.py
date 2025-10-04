@@ -1,8 +1,7 @@
 import os
 import requests
-from core.config import discord_config
-from core.utils import is_similar
-
+from dotenv import load_dotenv
+load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "moonshotai/kimi-k2-instruct-0905"
@@ -42,12 +41,6 @@ class AICommand:
         except Exception:
             return "błędna odpowiedź modelu"
 
-    def execute(self, message: str) -> str:
-        # Szukaj frazy "powiedz mi" na początku lub w środku wiadomości
-        words = message.split()
-        for i, word in enumerate(words):
-            if is_similar(word.lower(), "powiedz", threshold=0.8) and i+1 < len(words) and is_similar(words[i+1].lower(), "mi", threshold=0.8):
-                prompt = " ".join(words[i+2:]).strip()
-                if prompt:
-                    return self.ask_ai(prompt)
-        return None
+    def __call__(self, message: str) -> str:
+        return self.ask_ai(message)
+

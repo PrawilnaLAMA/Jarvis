@@ -12,7 +12,7 @@ import time
 from gtts import gTTS
 from playsound import playsound
 import logging
-
+from command_classifier import CommandClassifier
 
 def speak(text):
     try:
@@ -29,6 +29,26 @@ def process_output(output):
     if output:
         speak(output)
         logging.info(f"Processed output: {output}")
+
+class VoiceAssistant:
+    def __init__(self, model_path='command_classifier.pkl'):
+        self.classifier = CommandClassifier.load_model(model_path)
+        print("Asystent głosowy załadowany!")
+    
+    def process_command(self, text):
+        """Przetwarzanie komendy tekstowej"""
+        print(f"Otrzymano komendę: '{text}'")
+        
+        result = self.classifier.predict(text)
+        
+        print(f"Rozpoznano komendę: {result['command']}")
+        print(f"Pewność: {result['confidence']:.3f}")
+        
+        # Wykonanie akcji na podstawie komendy
+        self.execute_command(result['command'], text, result['confidence'])
+        
+        return result
+
 
 def main():
     # Load configuration
