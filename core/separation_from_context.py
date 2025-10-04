@@ -1,5 +1,6 @@
 import os
 import requests
+import re
 from dotenv import load_dotenv
 from utils import is_similar
 load_dotenv()
@@ -71,74 +72,43 @@ class SeparationFromContext:
         
         return self.ask_ai(prompt, system_message).strip()
 
-    def extract_song_title(self, command: str) -> str:
+
+    def load_channel_names(self, env_path=".env"):
         """
-        Wyodrębnia tytuł piosenki z komendy użytkownika.
-        
+        Ładuje listę osób z pliku .env (te, które zaczynają się od CHANNEL_).
+        """
+        load_dotenv(env_path)  # załadowanie zmiennych z pliku .env
+        names = []
+
+        for key in os.environ.keys():
+            if key.startswith("CHANNEL_"):
+                # wyciągamy nazwę po CHANNEL_
+                match = re.match(r"CHANNEL_([A-ZĄĆĘŁŃÓŚŹŻ]+)", key)
+                if match:
+                    names.append(match.group(1))
+        return names
+
+    def extract_recipient(self, command: str, env_path=".env", threshold=0.6) -> str:
+        """
+        Wyodrębnia odbiorcę wiadomości z komendy użytkownika.
+
         Args:
-            command (str): Komenda użytkownika, np. "puść na youtube hello"
-            
+            command (str): np. "Napisz piotrkowi, że nie mogę grać"
+            env_path (str): ścieżka do pliku .env
+            threshold (float): minimalny próg pewności dopasowania (0-1)
+
         Returns:
-            str: Wyodrębniony tytuł piosenki
+            str: Nazwa odbiorcy (np. "PIOTREK"), albo pusty string jeśli brak pewności.
         """
-        system_message = """Jesteś asystentem do ekstrakcji tytułów piosenek. 
-        Twoim zadaniem jest wyodrębnienie TYLKO tytułu piosenki z komendy użytkownika.
-        Zwróć wyłącznie tytuł piosenki, bez żadnych dodatkowych słów, znaków interpunkcyjnych ani komentarzy.
-        Jeśli nie możesz znaleźć tytułu, zwróć pusty string. Zamiast spacji w odpowiedzi używaj podkreślenia (_)."""
-        
-        prompt = f"""Wyodrębnij tytuł piosenki z tej komendy: "{command}"
-        
-        Przykłady:
-        - "puść na youtube hello" -> "hello"
-        - "włącz despacito" -> "despacito" 
-        - "zagraj shape of you" -> "shape_of_you"
-        - "odtwórz bohemian rhapsody" -> "bohemian_rhapsody"
+        recipients = self.load_channel_names(env_path)
 
-        Tytuł:"""
-        
-        return self.ask_ai(prompt, system_message).strip()
-    
-    import os
-import re
-from difflib import SequenceMatcher
-from dotenv import load_dotenv
+        best_match = ""
+        best_score = 0.0
 
-def load_channel_names(env_path=".env"):
-    """
-    Ładuje listę osób z pliku .env (te, które zaczynają się od CHANNEL_).
-    """
-    load_dotenv(env_path)  # załadowanie zmiennych z pliku .env
-    names = []
+        for recipient in recipients:
+            # sprawdzamy każdy wyraz z komendy, czy pasuje do imienia
+            for word in command.split():
+                if is_similar(word.lower().strip(",.!?"), recipient.lower(), threshold):
+                    return recipient
 
-    for key in os.environ.keys():
-        if key.startswith("CHANNEL_"):
-            # wyciągamy nazwę po CHANNEL_
-            match = re.match(r"CHANNEL_([A-ZĄĆĘŁŃÓŚŹŻ]+)", key)
-            if match:
-                names.append(match.group(1))
-    return names
-
-def extract_recipient(command: str, env_path=".env", threshold=0.6) -> str:
-    """
-    Wyodrębnia odbiorcę wiadomości z komendy użytkownika.
-
-    Args:
-        command (str): np. "Napisz piotrkowi, że nie mogę grać"
-        env_path (str): ścieżka do pliku .env
-        threshold (float): minimalny próg pewności dopasowania (0-1)
-
-    Returns:
-        str: Nazwa odbiorcy (np. "PIOTREK"), albo pusty string jeśli brak pewności.
-    """
-    recipients = load_channel_names(env_path)
-
-    best_match = ""
-    best_score = 0.0
-
-    for recipient in recipients:
-        # sprawdzamy każdy wyraz z komendy, czy pasuje do imienia
-        for word in command.split():
-            if is_similar(word.lower().strip(",.!?"), recipient.lower(), threshold):
-                return recipient
-
-    return ""
+        return ""

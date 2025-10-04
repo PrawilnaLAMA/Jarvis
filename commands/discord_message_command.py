@@ -12,15 +12,11 @@ HEADERS = {'authorization': f'{USER_TOKEN}'}
 
 class DiscordMessageCommand:
     def __call__(self, message):
-        match = re.search(r"^wyślij wiadomość\s+do\s+(\S+)\s+(.*)$", message.lower())
-
-        if not match:
-            return None
 
         ai = SeparationFromContext()
         generator = GenerateMessages()
         recipient = ai.extract_recipient(message) 
-        content = generator.generate_message_content(message)
+        content = generator.generate_message(message)
         
         if recipient:
             channel_id = None
