@@ -24,7 +24,13 @@ class GenerateMessages:
                 - odpisz Natalii, że mogę zagrać grę w lola -> Mogę zagrać gierkę
                 - zapytaj natana czy coś aktualnie robi -> robisz coś aktualnie?
                 - przywitaj się i zapytaj czy Kawa ma trochę czasu -> siema, masz czas?
+				- zapytaj adama, bebok, natana i piotrka czy chcą zagrać w lola -> chcesz zagrać w lola?
+				- napisz do marcela i natana, że są spoko -> jesteś spoko
+				- napisz do konrada i maksa, że ich lubię -> lubię cię
+				- poproś kubę i patryka, żeby przyszli na obiad -> przyjdź na obiad, proszę
 				"""
+				"zwróć szczególną uwagę, żeby formułować zdania tak, jakby były do jednej osoby. Nawet jeżeli proszę cię o napisanie do 2 osób."
+				"Nie używaj imion."
 			)
 		headers = {
 			"Authorization": f"Bearer {self.api_key}",
@@ -43,6 +49,7 @@ class GenerateMessages:
 			response = requests.post(self.url, headers=headers, json=data, timeout=30)
 			result = response.json()
 			if 'choices' in result:
+				print(result['choices'][0]['message']['content'].strip())
 				return result['choices'][0]['message']['content'].strip()
 			else:
 				return "błąd odpowiedzi modelu"
@@ -56,16 +63,3 @@ class GenerateMessages:
 		"""
 		return self.ask_ai(prompt)
 
-# Przykład użycia
-if __name__ == "__main__":
-	generator = GenerateMessages()
-	test_prompts = [
-		"napisz do piotrka, że nie mam czasu grać w lola",
-		"odpisz Natalii, że mogę zagrać grę w lola",
-		"zapytaj natana czy coś aktualnie robi",
-		"przywitaj się i zapytaj czy Kawa ma trochę czasu"
-	]
-	print("=== TEST GENEROWANIA WIADOMOŚCI ===")
-	for prompt in test_prompts:
-		msg = generator.generate_message(prompt)
-		print(f"Prompt: '{prompt}' -> Wiadomość: '{msg}'")

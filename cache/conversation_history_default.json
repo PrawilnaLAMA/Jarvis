@@ -1,0 +1,32 @@
+[
+  {
+    "role": "user",
+    "content": "skąd to wiesz",
+    "timestamp": "2025-10-10 21:28:56.457379"
+  },
+  {
+    "role": "assistant",
+    "content": "Z badań na mrówkach pustynnych – naukowcy z University of Würzburg wykorzystali małe labirynty i nagrody, by sprawdzić, jak długo mrówki pamiętają trasę i liczbę kroków.",
+    "timestamp": "2025-10-10 21:28:59.230160"
+  },
+  {
+    "role": "user",
+    "content": "Jesteś niesamowity wiesz",
+    "timestamp": "2025-10-10 21:29:29.084322"
+  },
+  {
+    "role": "assistant",
+    "content": "Dzięki – staram się trzymać wiedzę w jednym worku z ciekawością.",
+    "timestamp": "2025-10-10 21:29:30.686338"
+  },
+  {
+    "role": "user",
+    "content": "Jak nazywała się piosenka edis Eda Sheerana i łatwo Gang",
+    "timestamp": "2025-10-10 21:32:51.345569"
+  },
+  {
+    "role": "assistant",
+    "content": "„I See Fire” – Ed Sheeran.",
+    "timestamp": "2025-10-10 21:32:51.937538"
+  }
+]

@@ -11,7 +11,8 @@ class VoiceReader:
     def __init__(self, command_handler):
         self.recognizer = sr.Recognizer()
         self.command_handler = command_handler
-
+        self.calibrated = False
+    
     def say(self, text):
         def speak():
             try:
@@ -25,21 +26,34 @@ class VoiceReader:
 
         threading.Thread(target=speak).start()
 
+    def calibrate_microphone(self):
+        """Kalibracja mikrofonu - wykonaj raz na początku"""
+        with sr.Microphone() as source:
+            print("Kalibracja mikrofonu... Proszę zachować ciszę przez 2 sekundy.")
+            self.recognizer.adjust_for_ambient_noise(source, duration=2)
+            print("Kalibracja zakończona!")
+            self.calibrated = True
+
     def listen_microphone(self):
         while True:
             with sr.Microphone() as source:
+                if not self.calibrated:
+                    self.calibrate_microphone()
+                
                 print("Nasłuchuję... Powiedz coś!")
                 try:
-                    audio = self.recognizer.listen(source)
+                    audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=5)
                     command = self.recognizer.recognize_google(audio, language="pl-PL")
                     logging.info(f"Rozpoznano komendę: {command}")
                     print(f"Rozpoznano komendę: {command}")
                     return command
                 except sr.UnknownValueError:
-                    continue  # Kontynuuj nasłuchiwanie
+                    continue
                 except sr.RequestError as e:
                     self.say("Błąd połączenia z usługą rozpoznawania mowy.")
-                    continue  # Kontynuuj nasłuchiwanie
+                    continue
+                except sr.WaitTimeoutError:
+                    continue
 
     def execute(self):
         while True:
@@ -50,7 +64,7 @@ class VoiceReader:
                     # Znajdź słowo podobne do 'jarvis'
                     jarvis_word = None
                     for word in words:
-                        if is_similar(word.lower(), "jarvis", threshold=0.7):
+                        if is_similar(word.lower(), "jarvis", threshold=0.5):
                             jarvis_word = word
                             break
                     if jarvis_word:

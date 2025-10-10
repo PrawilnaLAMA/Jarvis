@@ -27,7 +27,7 @@ class CommandHandler:
     
     def execute_command(self, command, original_text, confidence):
         """Wykonanie odpowiedniej akcji na podstawie sklasyfikowanej komendy"""
-        if confidence < 0.5:
+        if confidence < 0.4:
             print("Niska pewność rozpoznania - proszę sprecyzować komendę")
             return
         

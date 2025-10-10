@@ -88,27 +88,55 @@ class SeparationFromContext:
                     names.append(match.group(1))
         return names
 
-    def extract_recipient(self, command: str, env_path=".env", threshold=0.6) -> str:
+    def extract_recipients(self, command: str, env_path=".env") -> list:
         """
-        Wyodrębnia odbiorcę wiadomości z komendy użytkownika.
+        Wyodrębnia odbiorcę/odbiorców wiadomości z komendy użytkownika używając AI.
+        Obsługuje przypadki z wieloma odbiorcami.
 
         Args:
-            command (str): np. "Napisz piotrkowi, że nie mogę grać"
+            command (str): np. "Napisz piotrkowi i anii, że nie mogę grać"
             env_path (str): ścieżka do pliku .env
-            threshold (float): minimalny próg pewności dopasowania (0-1)
 
         Returns:
-            str: Nazwa odbiorcy (np. "PIOTREK"), albo pusty string jeśli brak pewności.
+            list: Lista nazw odbiorców (np. ["PIOTREK", "ANIA"]), lub pusta lista jeśli brak
         """
         recipients = self.load_channel_names(env_path)
+        
+        if not recipients:
+            return []
+        
+        system_message = """Jesteś asystentem do identyfikacji odbiorców wiadomości. 
+        Twoim zadaniem jest znalezienie WSZYSTKICH osób, do których adresowana jest wiadomość.
+        Z listy dostępnych osób wybierz TYLKO te, które są wyraźnie wymienione w komendzie.
+        Jeśli wiadomość jest adresowana do więcej niż jednej osoby, zwróć wszystkie nazwy oddzielone przecinkami.
+        Zwróć nazwy WIELKIMI LITERAMI tak jak na liście, bez żadnych dodatkowych słów, znaków interpunkcyjnych ani komentarzy.
+        Jeśli nie możesz znaleźć żadnego odbiorcy, zwróć pusty string."""
 
-        best_match = ""
-        best_score = 0.0
+        recipients_list = ", ".join(recipients)
+        
+        prompt = f"""Dostępne osoby: {recipients_list}
 
-        for recipient in recipients:
-            # sprawdzamy każdy wyraz z komendy, czy pasuje do imienia
-            for word in command.split():
-                if is_similar(word.lower().strip(",.!?"), recipient.lower(), threshold):
-                    return recipient
+        Komenda: "{command}"
 
-        return ""
+        Przykłady:
+        - "powiedz piotrkowi że przyjdę później" -> "PIOTREK"
+        - "napisz do anny i tomasza żeby przyszli" -> "ANNA,TOMASZ" 
+        - "poinformuj wszystkich że spotkanie jest odwołane" -> ""
+        - "wiadomość dla marka i kasi: nie ma mnie" -> "MAREK,KASIA"
+        - "powiedz jej żeby zadzwoniła" -> ""
+
+        Odbiorcy:"""
+        
+        result = self.ask_ai(prompt, system_message).strip()
+        
+        if result:
+            found_recipients = []
+            for name in result.split(','):
+                name = name.strip().upper()
+                if name in recipients:
+                    found_recipients.append(name)
+            
+            if found_recipients:
+                return found_recipients  # Zwracamy listę, nie stringa
+        
+        return []  # Zwracamy pustą listę zamiast pustego stringa
