@@ -42,7 +42,7 @@ class VoiceReader:
                 
                 print("Nasłuchuję... Powiedz coś!")
                 try:
-                    audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=5)
+                    audio = self.recognizer.listen(source)
                     command = self.recognizer.recognize_google(audio, language="pl-PL")
                     logging.info(f"Rozpoznano komendę: {command}")
                     print(f"Rozpoznano komendę: {command}")
@@ -60,21 +60,20 @@ class VoiceReader:
             try:
                 komenda_glosowa = self.listen_microphone()
                 if komenda_glosowa:
-                    words = komenda_glosowa.split()
-                    # Znajdź słowo podobne do 'jarvis'
-                    jarvis_word = None
-                    for word in words:
-                        if is_similar(word.lower(), "jarvis", threshold=0.5):
-                            jarvis_word = word
-                            break
-                    if jarvis_word:
-                        # Usuń znalezione słowo z komendy
-                        filtered_words = [w for w in words if w != jarvis_word]
-                        filtered_command = " ".join(filtered_words)
-                        response = self.command_handler.handle_command(filtered_command)
-                        if response:
-                            self.say(response)
-                            logging.info(f"Odpowiedź na komendę: {response}")
+                    # Znajdź pozycję pierwszego wystąpienia "Jarvis"
+                    jarvis_index = komenda_glosowa.lower().find("jarvis")
+                    if jarvis_index != -1:
+                        # Usuń wszystko przed pierwszym "Jarvis" i weź resztę tekstu
+                        command_after_jarvis = komenda_glosowa[jarvis_index:]
+                        
+                        # Podziel na komendy używając "Jarvis" jako separatora
+                        filtered_commands = [cmd.strip() for cmd in command_after_jarvis.split('Jarvis') if cmd.strip()]
+                        
+                        for command in filtered_commands:
+                            response = self.command_handler.handle_command(command)
+                            if response:
+                                self.say(response)
+                                logging.info(f"Odpowiedź na komendę: {response}")
             except Exception as e:
                 logging.error(f"Error during voice command execution: {e}")
                 self.say("Wystąpił błąd. Spróbuj ponownie.")

@@ -1,32 +1,32 @@
 [
   {
     "role": "user",
-    "content": "skąd to wiesz",
-    "timestamp": "2025-10-10 21:28:56.457379"
+    "content": "ile truskawki mają kalorii",
+    "timestamp": "2025-10-15 17:32:43.818379"
   },
   {
     "role": "assistant",
-    "content": "Z badań na mrówkach pustynnych – naukowcy z University of Würzburg wykorzystali małe labirynty i nagrody, by sprawdzić, jak długo mrówki pamiętają trasę i liczbę kroków.",
-    "timestamp": "2025-10-10 21:28:59.230160"
+    "content": "Truskawki: ok. 32 kcal/100 g.",
+    "timestamp": "2025-10-15 17:32:44.411264"
   },
   {
     "role": "user",
-    "content": "Jesteś niesamowity wiesz",
-    "timestamp": "2025-10-10 21:29:29.084322"
+    "content": "puszczaj bawią",
+    "timestamp": "2025-10-15 20:39:53.886957"
   },
   {
     "role": "assistant",
-    "content": "Dzięki – staram się trzymać wiedzę w jednym worku z ciekawością.",
-    "timestamp": "2025-10-10 21:29:30.686338"
+    "content": "To hasło zbyt mało konkretne – nie wiem, co puszczać.",
+    "timestamp": "2025-10-15 20:39:54.448386"
   },
   {
     "role": "user",
-    "content": "Jak nazywała się piosenka edis Eda Sheerana i łatwo Gang",
-    "timestamp": "2025-10-10 21:32:51.345569"
+    "content": "puszcza",
+    "timestamp": "2025-10-15 20:40:13.983063"
   },
   {
     "role": "assistant",
-    "content": "„I See Fire” – Ed Sheeran.",
-    "timestamp": "2025-10-10 21:32:51.937538"
+    "content": "„Puszcza” może oznaczać puszczę (las), puszczać (coś puścić) albo puszczę (od puszczać). Które znaczenie Ci chodzi?",
+    "timestamp": "2025-10-15 20:40:14.708797"
   }
 ]

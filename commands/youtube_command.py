@@ -8,6 +8,8 @@ class YouTubeCommand:
     def __call__(self, message):
         ai = SeparationFromContext()
         query = ai.extract_song_title(message)
+        polish_to_ascii = str.maketrans('ąćęłńóśźżĄĆĘŁŃÓŚŹŻ', 'acelnoszzACELNOSZZ')
+        query = query.translate(polish_to_ascii)
         html = urllib.request.urlopen(f"https://www.youtube.com/results?search_query={query}")
         video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
         if video_ids:
