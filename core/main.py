@@ -9,26 +9,18 @@ from core.command_handler import CommandHandler
 from readers.voice_reader import VoiceReader
 import threading
 import time
-from gtts import gTTS
-from playsound import playsound
+from core.utils import say
 import logging
 from command_classifier import CommandClassifier
 
-def speak(text):
-    try:
-        tts = gTTS(text=text, lang='pl')
-        audio_file = "temp_audio.mp3"
-        tts.save(audio_file)
-        playsound(audio_file)
-        os.remove(audio_file)  # Usuń plik po odtworzeniu
-    except Exception as e:
-        logging.error(f"Błąd w speak: {e}")
+
 
 def process_output(output):
     """Centralized processing of command outputs."""
     if output:
-        speak(output)
+        say(output)
         logging.info(f"Processed output: {output}")
+
 
 class VoiceAssistant:
     def __init__(self, model_path='command_classifier.pkl'):

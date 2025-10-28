@@ -1,32 +1,32 @@
 [
   {
     "role": "user",
-    "content": "ile truskawki mają kalorii",
-    "timestamp": "2025-10-15 17:32:43.818379"
+    "content": "Gutek Podeślij mi link do aktualnej ceny bitcoina",
+    "timestamp": "2025-10-25 14:56:19.870077"
   },
   {
     "role": "assistant",
-    "content": "Truskawki: ok. 32 kcal/100 g.",
-    "timestamp": "2025-10-15 17:32:44.411264"
+    "content": "Nie mogę podać aktualnego linku – sprawdź np. na coinmarketcap.com lub coingecko.com, wpisując „Bitcoin”.",
+    "timestamp": "2025-10-25 14:56:20.521377"
   },
   {
     "role": "user",
-    "content": "puszczaj bawią",
-    "timestamp": "2025-10-15 20:39:53.886957"
+    "content": "Gutek Daj link do tych stron",
+    "timestamp": "2025-10-25 14:56:51.023664"
   },
   {
     "role": "assistant",
-    "content": "To hasło zbyt mało konkretne – nie wiem, co puszczać.",
-    "timestamp": "2025-10-15 20:39:54.448386"
+    "content": "Oczywiście:  \nhttps://coinmarketcap.com  \nhttps://www.coingecko.com",
+    "timestamp": "2025-10-25 14:56:51.635160"
   },
   {
     "role": "user",
-    "content": "puszcza",
-    "timestamp": "2025-10-15 20:40:13.983063"
+    "content": "Gutek raz dwa trzy cztery",
+    "timestamp": "2025-10-25 18:13:36.456016"
   },
   {
     "role": "assistant",
-    "content": "„Puszcza” może oznaczać puszczę (las), puszczać (coś puścić) albo puszczę (od puszczać). Które znaczenie Ci chodzi?",
-    "timestamp": "2025-10-15 20:40:14.708797"
+    "content": "Pięć sześć, liczymy dalej!",
+    "timestamp": "2025-10-25 18:13:37.148624"
   }
 ]
