@@ -5,21 +5,41 @@ import logging
 
 from difflib import SequenceMatcher
 import re
+import pygame
+import threading
 
 def say(text):
-    """
-    Odtwarza tekst jako mowę (TTS) i usuwa plik po odtworzeniu.
-    """
-    try:
-        print(f"Gutek mówi: {text}")
-        text = re.sub(r'http\S+', 'link', text)
-        tts = gTTS(text=text, lang='pl')
-        audio_file = "temp_audio.mp3"
-        tts.save(audio_file)
-        playsound(audio_file)
-        os.remove(audio_file)
-    except Exception as e:
-        logging.error(f"Błąd w say: {e}")
+    def play_audio():
+        print(text)
+        try:
+            tts = gTTS(text=text, lang='pl')
+            audio_file = "temp_audio.mp3"
+            tts.save(audio_file)
+            
+            # Inicjalizuj pygame mixer
+            pygame.mixer.init()
+            pygame.mixer.music.load(audio_file)
+            pygame.mixer.music.play()
+            
+            # Czekaj aż skończy grać
+            while pygame.mixer.music.get_busy():
+                pygame.time.wait(100)
+                
+            # Sprzątanie
+            pygame.mixer.music.stop()
+            pygame.mixer.quit()
+            os.remove(audio_file)
+            
+        except Exception as e:
+            logging.error(f"Błąd w say: {e}")
+            # Spróbuj zamknąć mixer nawet jeśli był błąd
+            try:
+                pygame.mixer.quit()
+            except:
+                pass
+
+    # Uruchom w osobnym wątku
+    threading.Thread(target=play_audio, daemon=True).start()
 
 def is_similar(word, target, threshold=0.7):
     return SequenceMatcher(None, word, target).ratio() >= threshold
