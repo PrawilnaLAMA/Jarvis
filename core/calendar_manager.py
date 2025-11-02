@@ -29,7 +29,7 @@ class CalendarManager:
       }
     """
 
-    def __init__(self, path: str = "calendar_data/events.json"):
+    def __init__(self, path: str = "calendar_app/events.json"):
         self.path = path
         self.events: List[Dict[str, Any]] = []
         self.load_events()
@@ -73,7 +73,6 @@ class CalendarManager:
                 "reminded": True
             }
         
-        print("test2", evt)
         
         # Walidacja - musi być data lub dni
         if evt["date"] is None and not evt["days"]:
@@ -88,10 +87,6 @@ class CalendarManager:
         self.events.append(evt)
         self.save_events()
         
-        # Komunikat i odświeżenie
-        messagebox.showinfo("Dodano", "Wydarzenie dodane")
-        self.refresh()
-        print("test3")
         return evt["id"]
 
     def remove_event(self, event_id: str) -> bool:

@@ -50,7 +50,7 @@ class VoiceReader:
                         command_after_jarvis = komenda_glosowa[jarvis_index:]
                         
                         # Podziel na komendy używając "Jarvis" jako separatora
-                        filtered_commands = [cmd.strip() for cmd in command_after_jarvis.lower().split('Jarvis') if cmd.strip()]
+                        filtered_commands = [cmd.strip() for cmd in command_after_jarvis.lower().split('jarvis') if cmd.strip()]
                         
                         for command in filtered_commands:
                             response = self.command_handler.handle_command(command)

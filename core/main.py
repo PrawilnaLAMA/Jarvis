@@ -2,24 +2,10 @@ import sys
 import os
 import configparser
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.config import discord_config
-
 from core.command_handler import CommandHandler
 from readers.voice_reader import VoiceReader
-import threading
 import time
-from core.utils import say
-import logging
 from command_classifier import CommandClassifier
-from core.calendar_manager import CalendarManager
-
-
-def process_output(output):
-    """Centralized processing of command outputs."""
-    if output:
-        say(output)
-        logging.info(f"Processed output: {output}")
-
 
 class VoiceAssistant:
     def __init__(self, model_path='command_classifier.pkl'):
@@ -47,17 +33,12 @@ def main():
     config.read(os.path.join(os.path.dirname(__file__), '../config.txt'))
 
     # Example usage of configuration
-    DISCORD_CHANNEL_ID = discord_config["discord_channel_id"]
-    print(f"Using Discord Channel ID: {DISCORD_CHANNEL_ID}")
     from core.utils import start_in_thread
     from readers.reminder_reader import ReminderReader
     from readers.discord_reader import DiscordReader
 
-    def say_async(msg: str):
-        threading.Thread(target=say, args=(msg,), daemon=True).start()
-
     voice_reader = VoiceReader(CommandHandler())
-    reminder_reader = ReminderReader(callback=say_async, check_interval=5, reminder_minutes=60)
+    reminder_reader = ReminderReader()
     discord_reader = DiscordReader()
 
     # Uruchomienie ReminderReader w osobnym wątku przez utils.py

@@ -49,6 +49,5 @@ class DiscordReader:
                     if msg_id != self.last_message_ids[channel_id] and author_id != MY_ID:
                         self.last_message_ids[channel_id] = msg_id
                         output = f"{author_name} powiedział: {content}"
-                        print(output)
                         say(output)
             time.sleep(2)  # Odpytywanie co 2 sekundy

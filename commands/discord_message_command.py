@@ -62,8 +62,6 @@ class DiscordMessageCommand:
 
         if sent and not errors:
             targets = ", ".join([s[0] for s in sent])
-            print(f"Wiadomość wysłana do: {targets}")
-            print(f"Wiadomość: {content}")
             return f"Wiadomość wysłana do: {targets}"
         else:
             msg = ""

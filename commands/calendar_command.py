@@ -32,19 +32,14 @@ class CalendarOpenCommand:
         elif self.action == "add":
             # Dodaj wydarzenie przez komendę (przykład: dodanie spotkania na dziś o 15:00)
             from core.calendar_manager import CalendarManager
-            print("test0")
             cm = CalendarManager()
-            print("test01")
             from core.separation_from_context import SeparationFromContext
             separator = SeparationFromContext()
-            print("test02")
             # Użyj argumentu przekazanego do __call__ jako komendy
             event_info = separator.extract_event_info(action)
-            print("test03")
             # Ustaw reminded na True
             event_info["reminded"] = True
             # Dodaj do kalendarza tylko jeśli jest data i typ
-            print("test1", event_info)
             if event_info.get("date") and event_info.get("type"):
                 cm.add_event(event_info)
                 return f"Dodano wydarzenie: {event_info.get('desc', 'bez opisu')} {event_info.get('date')} {event_info.get('start', '')}"

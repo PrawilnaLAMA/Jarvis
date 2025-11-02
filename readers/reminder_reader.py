@@ -1,23 +1,14 @@
 import threading
 import logging
 from typing import Optional
-
+from core.utils import say
 from core.calendar_manager import CalendarManager
 
 
 
 class ReminderReader:
-    """Reader-style wrapper for ReminderService so it matches other readers' lifecycle.
-
-    Usage:
-        rr = ReminderReader(callback=some_callable)
-        rr.start()
-        # rr.stop() to stop
-    """
-
-    def __init__(self, callback: Optional[callable] = None, check_interval: int = 60, reminder_minutes: int = 60, cm: Optional[CalendarManager] = None):
+    def __init__(self, check_interval: int = 60, reminder_minutes: int = 60, cm: Optional[CalendarManager] = None):
         self.cm = cm or CalendarManager()
-        self.callback = callback
         self.check_interval = check_interval
         self.reminder_minutes = reminder_minutes
 
@@ -34,12 +25,6 @@ class ReminderReader:
                 start_dt = item.get("start_dt")
                 desc = e.get("desc") or e.get("type") or "Wydarzenie"
                 msg = f"Przypomnienie: {desc} o {start_dt.strftime('%H:%M')}"
-                if self.callback:
-                    try:
-                        self.callback(msg)
-                    except Exception:
-                        print("Błąd w callback przypomnienia")
-                else:
-                    print(msg)
+                say(msg)
             threading.Event().wait(self.check_interval)
 

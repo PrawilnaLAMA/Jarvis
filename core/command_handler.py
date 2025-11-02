@@ -49,23 +49,3 @@ class CommandHandler:
 
     def unknown_command(self, text):
         print("⚠️ Nieznana komenda")
-
-# class CommandHandler:
-#     def __init__(self):
-#         self.commands = {
-#             "youtube": YouTubeCommand(),
-#             "calculate": CalculatorCommand(),
-#             "google": GoogleCommand(),
-#             "time": TimeCommand(),
-#             "train": TrainCommand(),
-#             "discord_message": DiscordMessageCommand(),
-#             "ai": AICommand(),
-#             "shutdown": ShutdownCommand(),
-#         }
-
-#     def handle_command(self, message):
-#         for command_name, command in self.commands.items():
-#             response = command.execute(message)
-#             if response:
-#                 return response
-#         return None

@@ -132,8 +132,6 @@ class TrainCommand:
         # Tworzymy DataFrame tylko jeśli znaleźliśmy jakieś stacje
         if matching_rows:
             filtered_stops = pd.DataFrame(matching_rows)
-            # print("filtered: ", filtered_stops)
-            # print("stop name: ", stop_name)
             return filtered_stops['stop_id'].tolist()
         else:
             return []

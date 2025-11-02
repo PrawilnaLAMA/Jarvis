@@ -1,0 +1,38 @@
+[
+  {
+    "type": "spotkanie",
+    "date": "2025-11-11",
+    "days": [],
+    "start": "13:45",
+    "desc": "znajomi",
+    "reminded": true,
+    "id": "0cb4c05a-b805-44c5-9794-6a47e1c493c5"
+  },
+  {
+    "type": "praca",
+    "date": "2025-11-03",
+    "days": [],
+    "start": "09:00",
+    "desc": "praca",
+    "reminded": true,
+    "id": "662cdec3-32dd-4b79-9bc7-28aba31d9413"
+  },
+  {
+    "type": "appointment",
+    "date": "2025-11-03",
+    "days": [],
+    "start": "9:00",
+    "desc": "praca",
+    "reminded": true,
+    "id": "a2368496-e0ac-4efd-8cef-568237290d0b"
+  },
+  {
+    "type": "spotkanie",
+    "date": "2025-11-02",
+    "days": [],
+    "start": "20:00",
+    "desc": "spotkanie z grupą projektową",
+    "reminded": true,
+    "id": "60fae133-dcb5-463d-b4be-0148f3eb76c7"
+  }
+]

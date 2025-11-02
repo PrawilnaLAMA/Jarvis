@@ -230,8 +230,6 @@ class SeparationFromContext:
                 start_station = parts[0].strip().upper()
                 end_station = parts[1].strip().upper()
                 
-                # Sprawdź czy stacje są na liście dostępnych
-                # print("stacje: ", start_station, end_station)
                 return start_station, end_station
         
         return "", ""
