@@ -4,6 +4,7 @@ import re
 from dotenv import load_dotenv
 from utils import is_similar
 import pandas as pd
+from datetime import datetime
 load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -263,3 +264,91 @@ class SeparationFromContext:
         except Exception as e:
             print(f"Błąd podczas wczytywania stacji: {e}")
             return []
+        
+    def extract_event_info(self, command: str) -> dict:
+        """
+        Wyodrębnia informacje o wydarzeniu z komendy użytkownika.
+        
+        Args:
+            command (str): Komenda użytkownika, np. "umówiłem się z fryzjerem na wtorek o 13:00"
+            
+        Returns:
+            dict: Słownik z informacjami o wydarzeniu (type, date, start, desc)
+        """
+        system_message = """Jesteś asystentem do ekstrakcji informacji o wydarzeniach z kalendarza.
+        Twoim zadaniem jest wyodrębnienie z komendy użytkownika następujących informacji:
+        - type: kategoria wydarzenia (jedno słowo, np. praca, spotkanie, sprawa, wizyta, przypomnienie)
+        - date: data w formacie YYYY-MM-DD (użyj aktualnej daty do konwersji względnych określeń czasu)
+        - start: godzina rozpoczęcia w formacie HH:MM (24-godzinny)
+        - desc: krótki opis wydarzenia
+        
+        Zwróć odpowiedź w formacie JSON.
+        Jeśli jakiejś informacji nie możesz znaleźć, użyj wartości null."""
+        
+        prompt = f"""Wyodrębnij informacje o wydarzeniu z tej komendy: "{command}"
+        
+        Aktualna data: {datetime.now().strftime('%Y-%m-%d')}
+        
+        Przykłady:
+        
+        Komenda: "umówiłem się z fryzjerem na wtorek o 13:00, chcę to zapisać w kalendarzu"
+        Odpowiedź: {{"type": "wizyta", "date": "2024-01-16", "start": "13:00", "desc": "wizyta u fryzjera"}}
+        
+        Komenda: "dodaj wydarzenie w kalendarzu o nazwie promotor o 11:30 w ten czwartek"
+        Odpowiedź: {{"type": "spotkanie", "date": "2024-01-18", "start": "11:30", "desc": "spotkanie z promotorem"}}
+        
+        Komenda: "dodaj do kalendarza wyjście o 15:00 w piątek"
+        Odpowiedź: {{"type": "sprawa", "date": "2024-01-19", "start": "15:00", "desc": "wyjście"}}
+        
+        Komenda: "dodaj przypomnienie do kalendarza o 17:30 pod nazwą kolokwium"
+        Odpowiedź: {{"type": "nauka", "date": "2024-01-16", "start": "17:30", "desc": "kolokwium"}}
+        
+        Komenda: "mam kolokwium z miernictwa 26 listopada. Czy możesz to dodać do kalendarza?"
+        Odpowiedź: {{"type": "nauka", "date": "2024-11-26", "start": null, "desc": "kolokwium z miernictwa"}}
+        
+        Komenda: "potrzebuję, żebyś dodał przypomnienie do kalendarza o wizycie u dentysty"
+        Odpowiedź: {{"type": "wizyta", "date": "2024-01-16", "start": null, "desc": "wizyta u dentysty"}}
+        
+        Komenda: "dodaj spotkanie z zespołem do mojego kalendarza na poniedziałek o 10:00"
+        Odpowiedź: {{"type": "spotkanie", "date": "2024-01-22", "start": "10:00", "desc": "spotkanie z zespołem"}}
+        
+        Komenda: "zarezerwuj czas w kalendarzu na trening o 18:00 w środę"
+        Odpowiedź: {{"type": "sport", "date": "2024-01-17", "start": "18:00", "desc": "trening"}}
+        
+        Komenda: "dodaj urodziny Asi na 15 marca o 20:00"
+        Odpowiedź: {{"type": "uroczystość", "date": "2024-03-15", "start": "20:00", "desc": "urodziny Asi"}}
+        
+        Komenda: "przypomnij mi o rachunkach do zapłacenia w przyszłym tygodniu"
+        Odpowiedź: {{"type": "przypomnienie", "date": "2024-01-23", "start": null, "desc": "rachunki do zapłacenia"}}
+        
+        Wyodrębnij informacje dla podanej komendy. Użyj aktualnej daty do obliczeń względnych określeń czasu.
+        
+        Odpowiedź:"""
+        
+        response = self.ask_ai(prompt, system_message).strip()
+        
+        try:
+            # Spróbuj sparsować odpowiedź jako JSON
+            import json
+            event_info = json.loads(response)
+            
+            # Walidacja i czyszczenie danych
+            if "type" not in event_info:
+                event_info["type"] = "spotkanie"  # wartość domyślna
+                
+            # Upewnij się, że wszystkie oczekiwane klucze istnieją
+            expected_keys = ["type", "date", "start", "desc"]
+            for key in expected_keys:
+                if key not in event_info:
+                    event_info[key] = None
+                    
+            return event_info
+            
+        except json.JSONDecodeError:
+            # Fallback w przypadku błędu parsowania JSON
+            return {
+                "type": None,
+                "date": None, 
+                "start": None,
+                "desc": None
+            }

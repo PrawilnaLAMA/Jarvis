@@ -1,7 +1,5 @@
 import speech_recognition as sr
 import logging
-import time
-import threading
 from core.utils import say
 from core.utils import is_similar
 
@@ -10,8 +8,6 @@ class VoiceReader:
         self.recognizer = sr.Recognizer()
         self.command_handler = command_handler
         self.calibrated = False
-    
-    # Usunięto lokalną funkcję say, używaj say z utils
 
     def calibrate_microphone(self):
         """Kalibracja mikrofonu - wykonaj raz na początku"""
@@ -47,14 +43,14 @@ class VoiceReader:
             try:
                 komenda_glosowa = self.listen_microphone()
                 if komenda_glosowa:
-                    # Znajdź pozycję pierwszego wystąpienia "gutek"
-                    jarvis_index = komenda_glosowa.lower().find("gutek")
+                    # Znajdź pozycję pierwszego wystąpienia "Jarvis"
+                    jarvis_index = komenda_glosowa.lower().find("jarvis")
                     if jarvis_index != -1:
-                        # Usuń wszystko przed pierwszym "gutek" i weź resztę tekstu
+                        # Usuń wszystko przed pierwszym "Jarvis" i weź resztę tekstu
                         command_after_jarvis = komenda_glosowa[jarvis_index:]
                         
-                        # Podziel na komendy używając "gutek" jako separatora
-                        filtered_commands = [cmd.strip() for cmd in command_after_jarvis.split('Jarvis') if cmd.strip()]
+                        # Podziel na komendy używając "Jarvis" jako separatora
+                        filtered_commands = [cmd.strip() for cmd in command_after_jarvis.lower().split('Jarvis') if cmd.strip()]
                         
                         for command in filtered_commands:
                             response = self.command_handler.handle_command(command)

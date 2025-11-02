@@ -1,6 +1,5 @@
 import requests
 import time
-import threading
 import logging
 from core.config import discord_config
 from core.utils import say
@@ -53,6 +52,3 @@ class DiscordReader:
                         print(output)
                         say(output)
             time.sleep(2)  # Odpytywanie co 2 sekundy
-
-    def start(self):
-        threading.Thread(target=self.monitor_channels, daemon=True).start()

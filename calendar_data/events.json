@@ -1,0 +1,29 @@
+[
+  {
+    "type": "wizyta",
+    "date": "2026-03-03",
+    "days": [],
+    "start": "08:00",
+    "desc": "spotkanie z dentystą",
+    "reminded": true,
+    "id": "c13a061c-2d85-4765-9c34-a432d4210182"
+  },
+  {
+    "type": "wizyta",
+    "date": "2025-11-01",
+    "days": [],
+    "start": "17:00",
+    "desc": "spotkanie z fryzjerem",
+    "reminded": false,
+    "id": "6b24683e-326b-460f-9353-d498983d4db0"
+  },
+  {
+    "type": "sprawa",
+    "date": "2025-10-31",
+    "days": [],
+    "start": "19:00",
+    "desc": "wyjście ze znajomymi",
+    "reminded": false,
+    "id": "7375a1f7-b057-4334-8c8e-dca6c9de2a85"
+  }
+]

@@ -1,32 +1,32 @@
 [
   {
     "role": "user",
-    "content": "Gutek raz dwa trzy cztery",
-    "timestamp": "2025-10-25 18:13:36.456016"
+    "content": "jarvis to przerażające nie mógłbyś mi dać jakiejś",
+    "timestamp": "2025-10-30 10:02:43.138062"
   },
   {
     "role": "assistant",
-    "content": "Pięć sześć, liczymy dalej!",
-    "timestamp": "2025-10-25 18:13:37.148624"
+    "content": "Na Międzynarodowej Stacji Kosmicznej woda unosi się w kuli, którą astronauta może „przełknąć” bez kubka – bo w mikrograwitacji płyny tworzą perfekcyjne, pływające kule.",
+    "timestamp": "2025-10-30 10:02:44.119072"
   },
   {
     "role": "user",
-    "content": "Gutek Powiedz coś ciekawego",
-    "timestamp": "2025-10-29 11:00:44.756013"
+    "content": "jarvis powiedz coś ciekawego",
+    "timestamp": "2025-10-30 11:58:57.486392"
   },
   {
     "role": "assistant",
-    "content": "W 2006 r. astronauci przy śniadaniu na ISS zjedli jogurt z bakteriami, które wcześniej leciały w kosmosie – i okazało się, żyły tam tak długo, że stały się bardziej odporne niż Ziemia.",
-    "timestamp": "2025-10-29 11:00:45.426533"
+    "content": "W twoich płucach jest tyle powierzchni gazowej, ile kort tenisowy – gdyby rozłożyć pęcherzyki płucne na płaszczyznę.",
+    "timestamp": "2025-10-30 11:58:58.288287"
   },
   {
     "role": "user",
-    "content": "Gutek Co to znaczy że stałeś się bardziej odporny niż Ziemia",
-    "timestamp": "2025-10-29 11:01:10.455237"
+    "content": "jarvis czy nie uważasz że to poprzednie zdanie było trochę nieskończone w twoim wykonaniu",
+    "timestamp": "2025-10-30 11:59:19.078572"
   },
   {
     "role": "assistant",
-    "content": "To metafora: bakterie przetrwały promieniowanie, próżnię i wahania temperatury lepiej, niż większość organizmów na Ziemi by potrafiła.",
-    "timestamp": "2025-10-29 11:01:11.087976"
+    "content": "Masz rację – powinno być „…ile kortu tenisowego, gdyby rozciągnąć wszystkie pęcherzyki płucne na płasko”.",
+    "timestamp": "2025-10-30 11:59:19.896201"
   }
 ]

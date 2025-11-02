@@ -5,6 +5,7 @@ from commands.train_command import TrainCommand
 from commands.discord_message_command import DiscordMessageCommand
 from commands.ai_command import AICommand
 from commands.shutdown_command import ShutdownCommand
+from commands.calendar_command import CalendarOpenCommand
 from command_classifier import CommandClassifier
 
 class CommandHandler:
@@ -35,6 +36,8 @@ class CommandHandler:
             'wyszukiwanie': GoogleCommand(),
             'discord': DiscordMessageCommand(),
             'muzyka': YouTubeCommand(),
+            'otworz_kalendarz': CalendarOpenCommand("open"),
+            'dodaj_do_kalendarza': CalendarOpenCommand("add"),
             'ai': AICommand(),
             'czas': TimeCommand(),
             'pociąg': TrainCommand(),

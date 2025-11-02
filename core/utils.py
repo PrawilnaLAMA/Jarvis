@@ -44,3 +44,14 @@ def say(text):
 def is_similar(word, target, threshold=0.7):
     return SequenceMatcher(None, word, target).ratio() >= threshold
 
+def start_in_thread(obj, method_name='run', daemon=True):
+    """
+    Uruchamia wskazaną metodę obiektu w nowym wątku.
+    Domyślnie uruchamia metodę 'run', ale można podać inną nazwę.
+    Przykład: start_in_thread(reader, 'start')
+    """
+    method = getattr(obj, method_name)
+    thread = threading.Thread(target=method, daemon=daemon)
+    thread.start()
+    return thread
+
