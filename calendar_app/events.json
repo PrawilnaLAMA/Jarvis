@@ -34,5 +34,14 @@
     "desc": "spotkanie z grupą projektową",
     "reminded": true,
     "id": "60fae133-dcb5-463d-b4be-0148f3eb76c7"
+  },
+  {
+    "type": "praca",
+    "date": "2025-12-01",
+    "days": [],
+    "start": "09:00",
+    "desc": "idę do pracy",
+    "reminded": true,
+    "id": "a6859092-532a-4282-9a94-b26bf2836ae5"
   }
 ]

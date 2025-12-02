@@ -1,5 +1,4 @@
 import threading
-import logging
 from typing import Optional
 from core.utils import say
 from core.calendar_manager import CalendarManager

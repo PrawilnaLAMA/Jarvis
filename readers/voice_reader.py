@@ -1,7 +1,6 @@
 import speech_recognition as sr
 import logging
 from core.utils import say
-from core.utils import is_similar
 
 class VoiceReader:
     def __init__(self, command_handler):

@@ -1,6 +1,5 @@
 PyAudio
 dotenv
 requests
-playsound
 gtts
 SpeechRecognition

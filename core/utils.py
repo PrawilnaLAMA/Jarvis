@@ -1,5 +1,4 @@
 from gtts import gTTS
-from playsound import playsound
 import os
 import logging
 
@@ -12,20 +11,16 @@ def say(text):
     def play_audio():
         print(text)
         try:
-            print("test0")
             tts = gTTS(text=text, lang='pl')
             audio_file = "temp_audio.mp3"
             tts.save(audio_file)
-            print("test01")
             # Inicjalizuj pygame mixer
             pygame.mixer.init()
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.play()
-            print("test02")
             # Czekaj aż skończy grać
             while pygame.mixer.music.get_busy():
                 pygame.time.wait(100)
-            print("test03")
             # Sprzątanie
             pygame.mixer.music.stop()
             pygame.mixer.quit()
