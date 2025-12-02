@@ -2,10 +2,24 @@
 .env
 
 # Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 **/__pycache__/
 
-./jarvis.bat
+# Ignore cache and conversation history
+cache/
+cache/**
+conversation_history*.json
 
-./calendar_app/events.json
+# Ignore saved events
+calendar_app/events.json
 
+# Ignore batch files
+jarvis.bat
+
+# Ignore virtual environment
 .venv/
+venv/
+env/

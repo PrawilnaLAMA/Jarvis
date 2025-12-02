@@ -1,16 +1,6 @@
 [
   {
     "role": "user",
-    "content": "czy możesz mi puścić tennessee whiskey w wersji chris asystent platona",
-    "timestamp": "2025-12-02 19:04:11.756985"
-  },
-  {
-    "role": "assistant",
-    "content": "Nie mogę puszczać muzyki, ale wpisz sobie „Tennessee Whiskey Chris Stapleton” na YouTube albo Spotify – pierwszy link to właśnie ta wersja.",
-    "timestamp": "2025-12-02 19:04:12.462270"
-  },
-  {
-    "role": "user",
     "content": "czy możesz puścić coś innego",
     "timestamp": "2025-12-02 19:10:07.549089"
   },
@@ -28,5 +18,15 @@
     "role": "assistant",
     "content": "Wiesz, że wulkaniczny piasek z Islandii potrafi „śpiewać”? Kiedy stąpasz po czarnym lodowcu Sólheimajökull, ziarna pod butem wydają dźwięk jak syczenie stłumionej skarbonki – to kwarc łamiący się pod ciężarem człowieka.",
     "timestamp": "2025-12-02 19:11:51.389299"
+  },
+  {
+    "role": "user",
+    "content": "zapytaj marcela co robi wieczorem",
+    "timestamp": "2025-12-02 20:23:14.858504"
+  },
+  {
+    "role": "assistant",
+    "content": "Marcel, co porabiasz dziś wieczorem?",
+    "timestamp": "2025-12-02 20:23:15.464887"
   }
 ]
