@@ -40,9 +40,15 @@ class Speech:
         return self.samples.size / TTS_SAMPLE_RATE
 
 
-MIN_SENTENCE_CHARS = 25  # krótsze zdania („Jasne.”) doklejamy do następnego
-MAX_SENTENCE_CHARS = 250  # dłuższe (rzadkie) dzielimy na przecinkach, żeby nie czekać zbyt długo
-_CLAUSE_BREAK = re.compile(r"(?<=[,;:–—])\s+")
+# granice fraz: koniec zdania albo przecinek/średnik/dwukropek/myślnik
+_PHRASE_BREAK = re.compile(r"(?<=[.!?…,;:–—])\s+")
+FIRST_CHUNK_CHARS = 45
+MIN_CHUNK_CHARS = 40
+MAX_CHUNK_CHARS = 140
+MAX_PHRASE_CHARS = 200
+WORD_CUT_CHUNKS = 2  # tylko w tylu pierwszych fragmentach wolno ciąć frazę w środku (szybki start)
+# kolejny fragment może być ~5× dłuższy od poprzedniego – tyle zdąży się wygenerować, zanim poprzedni wybrzmi
+GROWTH = 5
 
 
 def _cut_at_word(text: str, limit: int) -> tuple[str, str]:
@@ -53,33 +59,35 @@ def _cut_at_word(text: str, limit: int) -> tuple[str, str]:
     return (text[:cut], text[cut + 1 :]) if cut > 0 else (text, "")
 
 
-def _split_long(sentence: str) -> list[str]:
-    parts: list[str] = []
-    for clause in _CLAUSE_BREAK.split(sentence):
-        if parts and len(parts[-1]) + 1 + len(clause) <= MAX_SENTENCE_CHARS:
-            parts[-1] = f"{parts[-1]} {clause}"
-            continue
-        while len(clause) > MAX_SENTENCE_CHARS:
-            head, clause = _cut_at_word(clause, MAX_SENTENCE_CHARS)
-            parts.append(head)
-        parts.append(clause)
-    return parts
-
-
 def split_for_speech(text: str) -> list[str]:
-    """Fragmenty do syntezy: całe zdania. Każdy fragment usługa intonuje jak osobną wypowiedź, więc
-    dzielenie w środku zdania daje dziwne pauzy i akcenty – tniemy tylko między zdaniami.
-    Zdania generują się równolegle, więc kolejne są gotowe, zanim poprzednie wybrzmią."""
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?…])\s+", text.strip()) if s.strip()]
-    merged: list[str] = []
-    for sentence in sentences:
-        if merged and len(merged[-1]) < MIN_SENTENCE_CHARS:
-            merged[-1] = f"{merged[-1]} {sentence}"
-        else:
-            merged.append(sentence)
+    """Fragmenty do syntezy. Darmowa usługa Edge generuje cały fragment, zanim wyśle pierwszy dźwięk
+    (ok. 1,3 s + ~12 ms na znak), więc pierwszy fragment jest krótki, kolejne coraz dłuższe, a wszystkie
+    generują się równolegle – następny jest gotowy, zanim poprzedni wybrzmi."""
+    phrases = [p for p in _PHRASE_BREAK.split(text.strip()) if p]
     chunks: list[str] = []
-    for sentence in merged:
-        chunks.extend([sentence] if len(sentence) <= MAX_SENTENCE_CHARS else _split_long(sentence))
+    limit = FIRST_CHUNK_CHARS
+    current = ""
+    while phrases:
+        phrase = phrases.pop(0)
+        candidate = f"{current} {phrase}" if current else phrase
+        if len(candidate) <= limit:
+            current = candidate
+            continue
+        if current:
+            phrases.insert(0, phrase)
+        elif len(chunks) >= WORD_CUT_CHUNKS and len(phrase) <= MAX_PHRASE_CHARS:
+            # dalej od początku ważniejsza jest intonacja niż czas – nie tniemy w środku frazy
+            current = phrase
+        else:
+            # sama fraza jest za długa – tniemy na granicy słowa
+            current, rest = _cut_at_word(phrase, limit)
+            if rest:
+                phrases.insert(0, rest)
+        chunks.append(current)
+        limit = min(MAX_CHUNK_CHARS, max(MIN_CHUNK_CHARS, GROWTH * len(current)))
+        current = ""
+    if current:
+        chunks.append(current)
     return chunks
 
 

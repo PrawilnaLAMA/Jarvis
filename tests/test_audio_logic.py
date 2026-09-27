@@ -121,29 +121,23 @@ def test_recorder_keeps_preroll_and_limits_length():
     assert rec.audio().size == 1280 * (2 + 5)
 
 
-def test_split_for_speech_keeps_whole_sentences():
+def test_split_for_speech_short_first_chunk():
     text = ("Czy wiesz, że w 2026 roku planowane jest otwarcie pierwszego hotelu pod wodą, gdzie goście będą "
-            "mogli spać w przezroczystych pokojach? To ciekawe, prawda?")
-    assert split_for_speech(text) == [  # zdania w całości – intonacja jak w jednej wypowiedzi
-        "Czy wiesz, że w 2026 roku planowane jest otwarcie pierwszego hotelu pod wodą, gdzie goście będą "
-        "mogli spać w przezroczystych pokojach?",
-        "To ciekawe, prawda?",
-    ]
-    # krótkie zdanie na początku doklejone do następnego (bez sztucznej pauzy po „Jasne.”)
-    assert split_for_speech("Jasne. Już sprawdzam, co masz jutro w kalendarzu.") == [
-        "Jasne. Już sprawdzam, co masz jutro w kalendarzu."
-    ]
-    assert split_for_speech("Cześć, tu Jarvis. Tak teraz brzmię – daj znać, czy ci się podoba.") == [
-        "Cześć, tu Jarvis. Tak teraz brzmię – daj znać, czy ci się podoba."
-    ]
+            "mogli spać w przezroczystych pokojach? To ciekawe.")
+    chunks = split_for_speech(text)
+    assert chunks[0] == "Czy wiesz,"  # pierwszy fragment krótki → szybki pierwszy dźwięk
+    assert " ".join(chunks) == text  # nic nie ginie
+    for prev, nxt in list(zip(chunks, chunks[1:], strict=False))[:2]:  # początek: następny zdąży się wygenerować
+        assert len(nxt) <= max(40, 5 * len(prev))
+    assert all(len(c) <= 200 for c in chunks)
+    assert split_for_speech("Otwieram kalendarz.") == ["Otwieram kalendarz."]
     assert split_for_speech("") == []
-
-
-def test_split_for_speech_very_long_sentence_at_commas():
-    sentence = ", ".join(["to jest dość długa fraza w bardzo długim zdaniu"] * 8) + "."
-    chunks = split_for_speech(sentence)
-    assert len(chunks) > 1 and all(len(c) <= 250 for c in chunks)
-    assert " ".join(chunks) == sentence and all(c.endswith((",", ".")) for c in chunks)
+    # długie zdanie bez przecinka: pierwszy fragment ucięty na granicy słowa
+    long = "Aż 75% wszystkich nowych gatunków odkrytych w ostatniej dekadzie pochodzi z głębin oceanów, które są."
+    chunks = split_for_speech(long)
+    assert chunks[0] == "Aż 75% wszystkich nowych gatunków odkrytych"  # nie „…odkrytych w”
+    assert " ".join(chunks) == long
+    assert not any(c.rsplit(" ", 1)[-1] in {"w", "z", "że", "na", "do"} for c in chunks)
 
 
 def test_trim_silence_keeps_word_timing():

@@ -15,9 +15,7 @@ from jarvis.state import StatusTracker
 
 log = logging.getLogger(__name__)
 
-SYNTHESIS_WORKERS = 6
-# tyle sekund mowy musi być gotowe przed startem (usługa generuje każdy fragment 1,3–3 s, czasem dłużej)
-START_BUFFER_SECONDS = 2.0
+SYNTHESIS_WORKERS = 3
 
 
 def _pause_after(chunk: str, last: bool) -> float:
@@ -88,11 +86,8 @@ class Speaker:
             self.current_text, self.current_kind = text, kind
             self._tracker.set_speaking(True)
             self._bus.publish("tts.start", text=text)
-            chunks = split_for_speech(text)
-            # przy kilku fragmentach czekamy na zapas dźwięku – następne zdążą się wygenerować bez przerw
-            min_start = START_BUFFER_SECONDS if len(chunks) > 1 else 0.0
             try:
-                playback = self._player.play(self._segments(chunks, voice, rate, pitch), text, min_start)
+                playback = self._player.play(self._segments(text, voice, rate, pitch), text)
             finally:
                 self._tracker.set_speaking(False)
             result = SpeechResult(text, kind, playback.interrupted, playback.spoken)
@@ -104,8 +99,9 @@ class Speaker:
     def say_async(self, text: str, kind: str = "notice", **kwargs) -> None:
         threading.Thread(target=self.say, args=(text, kind), kwargs=kwargs, daemon=True).start()
 
-    def _segments(self, chunks: list[str], voice: str, rate: int, pitch: int) -> Iterator[Speech]:
+    def _segments(self, text: str, voice: str, rate: int, pitch: int) -> Iterator[Speech]:
         """Fragmenty generowane równolegle (usługa potrzebuje ~1,3 s+ na każdy), oddawane po kolei."""
+        chunks = split_for_speech(text)
         with ThreadPoolExecutor(max_workers=SYNTHESIS_WORKERS, thread_name_prefix="tts") as pool:
             futures = [
                 pool.submit(self._tts.synthesize, chunk, voice=voice, rate=rate, pitch=pitch) for chunk in chunks
