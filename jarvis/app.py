@@ -2,6 +2,7 @@
 
 import logging
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +83,7 @@ class JarvisApp:
     def shutdown(self) -> None:
         self.stop_event.set()
         if self.voice:
-            self.voice.stop_speaking()
+            self.voice.close()
 
     # --- polecenia ---
 
@@ -91,8 +92,10 @@ class JarvisApp:
         if barge_in is not None and barge_in.kind == "reply":
             self.conversation.mark_interrupted(barge_in.spoken)
         interruption = Interruption(barge_in.spoken) if barge_in is not None else None
+        started = time.monotonic()
         with self.tracker.thinking():
             reply = self.assistant.handle(text, source, interruption)
+        log.info("Odpowiedź po %.0f ms: %s", (time.monotonic() - started) * 1000, reply)
         if reply and self.voice and (source == "voice" or self.settings.get().voice.speak_text_replies):
             if speak_async:
                 self.voice.speaker.say_async(reply, "reply")

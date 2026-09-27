@@ -6,7 +6,7 @@ from jarvis.audio.devices import resample, rms, ui_level
 from jarvis.audio.recorder import UtteranceRecorder
 from jarvis.audio.stt import to_wav, vocabulary_prompt
 from jarvis.audio.transcript import clean_transcript, echo_similarity, is_echo, is_hallucination, strip_wake_phrase
-from jarvis.audio.tts import locate_words, split_sentences
+from jarvis.audio.tts import locate_words, split_sentences, voice_entries
 from jarvis.settings import Settings
 
 FRAME = np.zeros(1280, dtype=np.int16)
@@ -18,6 +18,10 @@ FRAME = np.zeros(1280, dtype=np.int16)
         ("Hej Jarvis, puść muzykę.", "puść muzykę."),
         ("hey jarvis która godzina", "która godzina"),
         ("Dżarwis, napisz do Piotrka", "napisz do Piotrka"),
+        ("Hej Jarewis! Powiedz coś", "Powiedz coś"),
+        ("Hej Żarwis, która godzina", "która godzina"),
+        ("Jarvisie, zgaś światło", "zgaś światło"),
+        ("Jarzyny są zdrowe", "Jarzyny są zdrowe"),
         ("i wtedy mówię. Hej Jarvis! Dodaj spotkanie", "Dodaj spotkanie"),
         ("Puść muzykę", "Puść muzykę"),
         ("Hej Jarvis.", ""),
@@ -87,8 +91,21 @@ def test_recorder_waits_for_speech_after_wake_word():
         rec.add(FRAME, 0.9)
     assert rec.speech_started
     done_after = [rec.add(FRAME, 0.05) for _ in range(12)]
-    assert done_after.index(True) == 11  # 12 × 80 ms ≥ 0,9 s ciszy
+    assert done_after.index(True) == 9  # 10 × 80 ms = 0,8 s ciszy
     assert rec.has_speech
+
+
+def test_recorder_ends_despite_quieter_background_speech():
+    rec = UtteranceRecorder(speech_started=True)
+    for level in (0.06, 0.08, 0.07, 0.09, 0.08):  # użytkownik
+        rec.add(FRAME, 0.95, level)
+    # telewizor: VAD słyszy mowę, ale ~12 dB ciszej niż użytkownik → to już koniec wypowiedzi
+    done = [rec.add(FRAME, 0.9, 0.02) for _ in range(10)]
+    assert done[-1] and not any(done[:-1])
+    # równie głośna mowa (np. użytkownik mówi dalej) nie kończy nagrania
+    rec2 = UtteranceRecorder(speech_started=True)
+    for _ in range(20):
+        assert not rec2.add(FRAME, 0.9, 0.07)
 
 
 def test_recorder_times_out_without_speech():
@@ -108,6 +125,20 @@ def test_split_sentences_merges_short_ones():
     text = "Jasne. Dodałem wydarzenie do kalendarza na piątek. Coś jeszcze?"
     assert split_sentences(text) == ["Jasne. Dodałem wydarzenie do kalendarza na piątek.", "Coś jeszcze?"]
     assert split_sentences("") == []
+
+
+def test_voice_entries_polish_first_then_multilingual():
+    raw = [
+        {"ShortName": "en-US-AndrewMultilingualNeural", "Locale": "en-US", "Gender": "Male"},
+        {"ShortName": "en-US-GuyNeural", "Locale": "en-US", "Gender": "Male"},
+        {"ShortName": "pl-PL-ZofiaNeural", "Locale": "pl-PL", "Gender": "Female"},
+        {"ShortName": "de-DE-FlorianMultilingualNeural", "Locale": "de-DE", "Gender": "Male"},
+    ]
+    assert [(v["name"], v["label"]) for v in voice_entries(raw)] == [
+        ("pl-PL-ZofiaNeural", "Zofia"),
+        ("en-US-AndrewMultilingualNeural", "Andrew (wielojęzyczny)"),
+        ("de-DE-FlorianMultilingualNeural", "Florian (wielojęzyczny)"),
+    ]
 
 
 def test_locate_words_maps_to_text_positions():

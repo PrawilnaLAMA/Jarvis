@@ -2,10 +2,11 @@
 
 import logging
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
-from jarvis.audio.chime import play_chime
+from jarvis.audio.chime import CHIME
 from jarvis.audio.devices import resolve_device, suppress_alsa_errors
 from jarvis.audio.mic import MicStream
 from jarvis.audio.player import Player
@@ -51,7 +52,19 @@ class VoiceService:
     # --- uruchomienie ---
 
     def start(self, stop: threading.Event) -> None:
+        threading.Thread(target=self._warm_up_tts, name="tts-warmup", daemon=True).start()
         threading.Thread(target=self._run, args=(stop,), name="voice", daemon=True).start()
+
+    def _warm_up_tts(self) -> None:
+        """Pierwsze połączenie z usługą mowy w procesie trwa 2–3 s (DNS, TLS, inicjalizacja) –
+        robimy je od razu przy starcie, żeby pierwsza odpowiedź nie czekała."""
+        started = time.monotonic()
+        self.player.prepare()
+        try:
+            self.tts.synthesize("Gotowy.", voice=self._settings.get().voice.tts_voice)
+            log.info("Synteza mowy gotowa (rozgrzewka %.1f s)", time.monotonic() - started)
+        except Exception as e:
+            log.warning("Rozgrzewka syntezy mowy nie powiodła się: %s", e)
 
     def _run(self, stop: threading.Event) -> None:
         suppress_alsa_errors()
@@ -79,7 +92,7 @@ class VoiceService:
             settings=self._settings,
             bus=self._bus,
             respond=self._respond,
-            chime=lambda: play_chime(self._output_device()),
+            chime=lambda: self.player.play_effect(CHIME),
         )
         self._publish_status()
         log.info("Nasłuch uruchomiony")
@@ -133,6 +146,10 @@ class VoiceService:
 
     def stop_speaking(self) -> None:
         self.speaker.stop()
+
+    def close(self) -> None:
+        self.speaker.stop()
+        self.player.close()
 
     def say(self, text: str, kind: str = "notice") -> None:
         self.speaker.say_async(text, kind)

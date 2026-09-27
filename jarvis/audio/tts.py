@@ -70,8 +70,27 @@ def decode_mp3(data: bytes) -> np.ndarray:
     return np.frombuffer(decoded.samples, dtype=np.int16).astype(np.float32) / 32768.0
 
 
+DEFAULT_VOICE = "en-US-AndrewMultilingualNeural"  # wielojęzyczny: naturalny, ciepły głos, dobrze mówi po polsku
+
+
+def voice_entries(voices: list[dict], locale_prefix: str = "pl-") -> list[dict[str, str]]:
+    """Głosy do wyboru: polskie oraz wielojęzyczne (mówią po polsku, często naturalniej)."""
+    result = []
+    for v in voices:
+        name = v["ShortName"]
+        multilingual = "Multilingual" in name
+        if not (v["Locale"].lower().startswith(locale_prefix) or multilingual):
+            continue
+        label = name.split("-", 2)[-1].removesuffix("Neural").replace("Multilingual", "")
+        if multilingual:
+            label += " (wielojęzyczny)"
+        result.append({"name": name, "label": label, "gender": v.get("Gender", "")})
+    # najpierw polskie, potem wielojęzyczne; w grupach alfabetycznie
+    return sorted(result, key=lambda v: (not v["name"].lower().startswith(locale_prefix), v["label"]))
+
+
 class EdgeTTS:
-    def __init__(self, voice: str = "pl-PL-MarekNeural", rate: int = 0):
+    def __init__(self, voice: str = DEFAULT_VOICE, rate: int = 0):
         self.voice = voice
         self.rate = rate
 
@@ -96,14 +115,7 @@ class EdgeTTS:
         return Speech(text, decode_mp3(bytes(audio)), locate_words(text, words))
 
     @staticmethod
-    def list_voices(locale_prefix: str = "pl-") -> list[dict[str, str]]:
+    def list_voices() -> list[dict[str, str]]:
         import edge_tts
 
-        voices = asyncio.run(edge_tts.list_voices())
-        result = []
-        for v in voices:
-            if not v["Locale"].lower().startswith(locale_prefix):
-                continue
-            label = v["ShortName"].split("-", 2)[-1].removesuffix("Neural")
-            result.append({"name": v["ShortName"], "label": label, "gender": v.get("Gender", "")})
-        return sorted(result, key=lambda v: v["name"])
+        return voice_entries(asyncio.run(edge_tts.list_voices()))

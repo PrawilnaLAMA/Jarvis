@@ -72,31 +72,53 @@ def test_finishes_at_end_of_input(player):
 class FakeStream:
     """Atrapa sounddevice.OutputStream – wywołuje callback tak szybko, jak się da."""
 
+    opened = 0
+
     def __init__(self, callback, **kwargs):
         self._callback = callback
-        self._running = False
+        self.active = False
+        FakeStream.opened += 1
 
-    def __enter__(self):
-        self._running = True
+    def start(self):
+        self.active = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
-        return self
 
     def _loop(self):
         out = np.zeros((BLOCK_SAMPLES, 1), dtype=np.float32)
-        while self._running:
+        while self.active:
             self._callback(out, BLOCK_SAMPLES, None, None)
 
-    def __exit__(self, *exc):
-        self._running = False
+    def stop(self):
+        self.active = False
         self._thread.join()
+
+    def close(self):
+        pass
 
 
 def test_play_full_flow_with_fake_device(bus, recorder, monkeypatch):
     import sounddevice
 
     monkeypatch.setattr(sounddevice, "OutputStream", FakeStream)
-    result = Player(bus).play(iter(SEGMENTS), TEXT)
-    assert not result.interrupted and result.spoken == TEXT
-    assert len(recorder.of("tts.word")) == 7
-    assert recorder.of("audio.level")[-1] == {"source": "tts", "level": 0.0}
+    FakeStream.opened = 0
+    player = Player(bus)
+    try:
+        result = player.play(iter(SEGMENTS), TEXT)
+        assert not result.interrupted and result.spoken == TEXT
+        assert len(recorder.of("tts.word")) == 7
+        assert recorder.of("audio.level")[-1] == {"source": "tts", "level": 0.0}
+        # kolejna wypowiedź i sygnał korzystają z tego samego, stale otwartego strumienia
+        assert player.play(iter(SEGMENTS[:1]), "Ala ma kota.").spoken == "Ala ma kota."
+        player.play_effect(np.ones(100, dtype=np.float32))
+        assert FakeStream.opened == 1
+    finally:
+        player.close()
+
+
+def test_effect_is_mixed_even_when_idle(bus):
+    player = Player(bus)
+    player._effect = np.full(300, 0.5, dtype=np.float32)
+    out = drive(player, 1)
+    assert out[:300].max() == pytest.approx(0.5) and out[300:].max() == 0.0
+    assert player.output_level == 0.0  # sygnał nie jest „mową” dla filtra echa

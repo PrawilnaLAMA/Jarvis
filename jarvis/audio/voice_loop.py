@@ -158,7 +158,7 @@ class VoiceLoop:
 
         if self._recorder is not None:
             self._preroll.append(frame)
-            self._continue_recording(frame, vad)
+            self._continue_recording(frame, vad, level)
             return
         self._preroll.append(frame)
 
@@ -270,14 +270,15 @@ class VoiceLoop:
         self._barge_in = barge_in
         self._set_listener("listening")
 
-    def _continue_recording(self, frame: np.ndarray, vad: float) -> None:
+    def _continue_recording(self, frame: np.ndarray, vad: float, level: float) -> None:
         recorder = self._recorder
-        if recorder is None or not recorder.add(frame, vad):
+        if recorder is None or not recorder.add(frame, vad, level):
             return
         self._recorder = None
         if not recorder.has_speech:
             self._set_listener("idle")
             return
+        log.info("Koniec wypowiedzi (%s, %.1f s nagrania)", self._record_mode, recorder.duration)
         with self._pending_lock:
             self._pending += 1
         self._jobs.put(_Job(recorder.audio(), self._barge_in, require_wake=self._record_mode == "tentative"))
@@ -310,6 +311,7 @@ class VoiceLoop:
 
     def process_job(self, job: _Job) -> None:
         self._tracker.set_transcribing(True)
+        started = time.monotonic()
         try:
             raw = self._stt.transcribe(job.audio)
         except STTError as e:
@@ -319,7 +321,7 @@ class VoiceLoop:
             self._tracker.set_transcribing(False)
 
         text = clean_transcript(raw, vocabulary_prompt(self._cfg))
-        log.info("Rozpoznano: „%s” → „%s”", raw, text)
+        log.info("Rozpoznano w %.0f ms: „%s” → „%s”", (time.monotonic() - started) * 1000, raw, text)
         if job.require_wake:
             if not has_wake_phrase(raw):
                 return  # model się pomylił – to nie było do Jarvisa

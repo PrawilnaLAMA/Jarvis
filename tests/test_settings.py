@@ -33,7 +33,7 @@ def test_update_merges_and_persists(tmp_path):
     store._on_change = changed.append
     store.update({"voice": {"tts_rate": 10}})
     assert store.get().voice.tts_rate == 10
-    assert store.get().voice.tts_voice == "pl-PL-MarekNeural"  # reszta sekcji zachowana
+    assert store.get().voice.tts_voice == "en-US-AndrewMultilingualNeural"  # reszta sekcji zachowana
     assert SettingsStore(tmp_path / "settings.json").get().voice.tts_rate == 10
     assert len(changed) == 1
 

@@ -3,10 +3,11 @@
 import re
 from difflib import SequenceMatcher
 
-# „hej jarvis”, „hey jarvis”, „ej dżarwis”… – różne zapisy, które zwraca Whisper
+# „hej jarvis”, „hey jarvis”, „ej dżarwis”, „hej jarewis”… – różne zapisy, które zwraca Whisper:
+# (dż|dz|cz|j|ż|g) + a/e + r + (e/y)? + v/w/f + i/y + s/z/ś + dowolna końcówka („Jarvisie”)
+_WAKE_NAME = r"(?:dż|dz|cz|j|ż|g)[ae]r[ey]?[vwf][iy](?:sz|[szś])\w*"
 _WAKE = re.compile(
-    r"(?:\b(?:hej|hey|hei|ej|hi|halo)\b[\s,.!-]*)?\b(?:jarvis\w*|dżarvis\w*|dżarwis\w*|jarwis\w*|jervis\w*|dżerwis\w*)\b"
-    r"[\s,.!?:-]*",
+    rf"(?:\b(?:hej|hey|hei|ej|hi|halo)\b[\s,.!-]*)?\b{_WAKE_NAME}\b[\s,.!?:-]*",
     re.IGNORECASE,
 )
 

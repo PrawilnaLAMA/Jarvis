@@ -18,7 +18,7 @@ def _setup_logging(debug: bool) -> None:
     file = RotatingFileHandler(paths.LOG_FILE, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
     logging.basicConfig(
         level=logging.DEBUG if debug else logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
         handlers=[console, file],
     )

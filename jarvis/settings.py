@@ -52,7 +52,7 @@ class VoiceSettings:
     output_device: str = ""
     stt_model: str = "whisper-large-v3"
     vocabulary: list[str] = field(default_factory=list)  # dodatkowe słowa dla Whispera
-    tts_voice: str = "pl-PL-MarekNeural"
+    tts_voice: str = "en-US-AndrewMultilingualNeural"  # wielojęzyczny, mówi po polsku; alternatywy w UI
     tts_rate: int = 0  # procent, np. 10 = szybciej o 10%
     volume: float = 1.0
     speak_text_replies: bool = True  # czy czytać na głos odpowiedzi na komendy wpisane w UI
