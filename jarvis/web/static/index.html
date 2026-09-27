@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#05070d">
+  <title>Jarvis</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body data-state="offline">
+  <!-- Ikony (sprite SVG) -->
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 2.2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></g></symbol>
+    <symbol id="i-mic-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9V6a3 3 0 0 1 5.8-1.1M15 10.5V11a3 3 0 0 1-4.6 2.5"/><path d="M5.5 11a6.5 6.5 0 0 0 11 4.7M18.5 11a6.5 6.5 0 0 1-.3 2M12 17.5V21M8.5 21h7M3.5 3.5l17 17"/></g></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.2" fill="currentColor"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10.5H10l-5.5 4.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 11.5l16-7.5-6 16-2.6-6.2z M11.4 13.8L20 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.5 5.2a4.2 4.2 0 0 0-5.3 5.3L4 15.7 7.3 19l5.2-5.2a4.2 4.2 0 0 0 5.3-5.3l-2.6 2.6-2.4-.6-.6-2.4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2zM10 21h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10.5H13l-4.5 4v-4h-4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="9" cy="10.8" r="1.1" fill="currentColor"/><circle cx="15" cy="10.8" r="1.1" fill="currentColor"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.5M12 7.6v.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3.8l9 16H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 10v4.5M12 17.2v.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 9l6 6M15 9l-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3M4 11.5V10a4 4 0 0 1 4-4h12M7 21l-3-3 3-3M20 12.5V14a4 4 0 0 1-4 4H4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M9.9 5.8A9.5 9.5 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.4 7.6A15.6 15.6 0 0 0 2.5 12S6 18.5 12 18.5a9.2 9.2 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" aria-hidden="true" focusable="false"><use href="#i-logo"/></svg>
+      <span class="brand-text">J.A.R.V.I.S.</span>
+    </div>
+
+    <nav class="nav" aria-label="Widoki">
+      <a class="nav-link" href="#jarvis" data-view="jarvis">Jarvis</a>
+      <a class="nav-link" href="#calendar" data-view="calendar">Kalendarz</a>
+      <a class="nav-link" href="#settings" data-view="settings">Ustawienia<span class="nav-dot" id="nav-settings-dot" title="Niezapisane zmiany" hidden></span></a>
+    </nav>
+
+    <div class="conn" id="conn">
+      <span class="conn-dot" aria-hidden="true"></span>
+      <span class="conn-main" id="conn-main" role="status">Łączenie…</span>
+      <span class="conn-sep" id="conn-sep" aria-hidden="true" hidden>·</span>
+      <span class="conn-state" id="conn-state"></span>
+    </div>
+  </header>
+
+  <main class="main" id="main">
+    <!-- Widok główny: kula, napisy, sterowanie i czat -->
+    <section class="view view-jarvis" id="view-jarvis" data-view="jarvis" aria-label="Jarvis">
+      <div class="stage">
+        <div class="banner" id="setup-banner" role="note" hidden>
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-warning"/></svg>
+          <span>Brak klucza GROQ_API_KEY — Jarvis nie odpowie na polecenia.</span>
+          <button type="button" class="btn btn-small" id="setup-banner-btn">Przejdź do ustawień</button>
+        </div>
+
+        <div class="orb-wrap" id="orb-wrap">
+          <canvas id="orb" aria-hidden="true"></canvas>
+        </div>
+
+        <div class="captions" id="captions">
+          <p class="heard" id="heard"><span class="heard-label">Ty:</span> <span id="heard-text"></span></p>
+          <div class="caption-box">
+            <p class="subtitle" id="subtitle" aria-hidden="true"><span class="spoken" id="subtitle-spoken"></span><span class="caret" id="subtitle-caret">&#8203;</span><span class="pending" id="subtitle-pending"></span></p>
+            <div class="hint-wrap">
+              <p class="hint" id="hint">Łączenie z Jarvisem…</p>
+              <p class="hint-sub" id="hint-sub" hidden></p>
+            </div>
+          </div>
+          <p class="sr-only" id="subtitle-live" aria-live="polite"></p>
+        </div>
+
+        <div class="controls" role="group" aria-label="Sterowanie głosem">
+          <button type="button" class="ctrl ctrl-round" id="btn-mic" aria-label="Wycisz mikrofon" aria-pressed="false" title="Wycisz mikrofon" disabled>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg>
+          </button>
+          <button type="button" class="ctrl ctrl-primary" id="btn-talk" title="Zacznij słuchać (jak po „Hej Jarvis”)" disabled>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-wave"/></svg>
+            <span>Mów</span>
+          </button>
+          <button type="button" class="ctrl ctrl-stop" id="btn-stop" title="Przerwij mówienie (Esc)" disabled>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-stop"/></svg>
+            <span>Przerwij</span>
+          </button>
+          <button type="button" class="ctrl chat-toggle" id="btn-chat" aria-controls="chat" aria-expanded="false">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg>
+            <span>Czat</span>
+            <span class="badge" id="chat-badge" hidden></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="scrim" id="chat-scrim" hidden></div>
+
+      <aside class="chat" id="chat" aria-label="Rozmowa">
+        <header class="panel-head">
+          <h2 class="panel-title">Rozmowa</h2>
+          <button type="button" class="icon-btn panel-close" id="chat-close" aria-label="Zamknij czat">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg>
+          </button>
+        </header>
+        <div class="chat-body">
+          <ol class="chat-log" id="chat-log" aria-live="polite" aria-relevant="additions" aria-label="Historia rozmowy" tabindex="0"></ol>
+          <p class="chat-empty" id="chat-empty">Tu pojawi się rozmowa z Jarvisem.<br>Napisz polecenie poniżej albo powiedz „Hej Jarvis”.</p>
+          <button type="button" class="jump" id="chat-jump" hidden>
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-arrow-down"/></svg>
+            Nowe wiadomości
+          </button>
+        </div>
+        <div class="thinking" id="chat-thinking" hidden>
+          <span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          Jarvis myśli…
+        </div>
+        <form class="chat-form" id="chat-form" autocomplete="off">
+          <label class="sr-only" for="chat-input">Polecenie dla Jarvisa</label>
+          <input class="input chat-input" id="chat-input" type="text" placeholder="Napisz polecenie…" enterkeyhint="send" maxlength="2000" spellcheck="true">
+          <button type="submit" class="icon-btn icon-btn-accent" aria-label="Wyślij">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-send"/></svg>
+          </button>
+        </form>
+        <p class="chat-error" id="chat-error" role="alert" hidden></p>
+      </aside>
+    </section>
+
+    <!-- Kalendarz -->
+    <section class="view view-calendar" id="view-calendar" data-view="calendar" aria-label="Kalendarz" hidden>
+      <div class="cal-main">
+        <header class="cal-head">
+          <h1 class="cal-title" id="cal-title" aria-live="polite"></h1>
+          <div class="cal-nav">
+            <button type="button" class="icon-btn" id="cal-prev" aria-label="Poprzedni miesiąc" title="Poprzedni miesiąc">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg>
+            </button>
+            <button type="button" class="btn" id="cal-today">Dziś</button>
+            <button type="button" class="icon-btn" id="cal-next" aria-label="Następny miesiąc" title="Następny miesiąc">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg>
+            </button>
+          </div>
+        </header>
+        <div class="cal-status" id="cal-status" role="status" hidden></div>
+        <div class="cal-weekdays" aria-hidden="true">
+          <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span class="is-weekend">So</span><span class="is-weekend">Nd</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <div class="scrim" id="day-scrim" hidden></div>
+      <aside class="day-panel" id="day-panel" aria-label="Wybrany dzień"></aside>
+    </section>
+
+    <!-- Ustawienia (formularz budowany w js/settings.js) -->
+    <section class="view view-settings" id="view-settings" data-view="settings" aria-label="Ustawienia" hidden>
+      <div class="settings" id="settings-root"></div>
+    </section>
+  </main>
+
+  <noscript><p class="noscript">Jarvis wymaga włączonej obsługi JavaScriptu.</p></noscript>
+</body>
+</html>

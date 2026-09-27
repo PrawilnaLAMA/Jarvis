@@ -121,17 +121,15 @@ class VoiceService:
         }
 
     def _publish_status(self) -> None:
-        self._bus.publish("status", **self.status())
+        self._bus.publish("voice.status")  # aplikacja publikuje wtedy pełny stan (topic "status")
 
     def set_muted(self, muted: bool) -> None:
         if self.loop:
             self.loop.set_muted(muted)
-            self._publish_status()
 
     def listen(self) -> None:
         if self.loop:
             self.loop.trigger()
-            self._publish_status()
 
     def stop_speaking(self) -> None:
         self.speaker.stop()

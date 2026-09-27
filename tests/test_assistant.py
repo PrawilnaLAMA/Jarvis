@@ -123,7 +123,7 @@ def test_add_event_and_tool_error_is_spoken(env):
         {"tool_calls": [call("add_calendar_event", {"desc": "bez daty"})]},
     )
     reply = assistant.handle("dodaj trening w każdą środę o 18")
-    assert reply == "Dodałem do kalendarza: trening co tydzień: środa o 18:00."
+    assert reply == "Dodałem do kalendarza: trening w każdą środę o 18:00."
     assert assistant.handle("dodaj coś").startswith("Nie dodałem wydarzenia. Podaj datę")
     assert len(ctx.calendar.all_events()) == 1
 

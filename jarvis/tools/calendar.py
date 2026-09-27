@@ -4,25 +4,25 @@ from datetime import date, timedelta
 from difflib import SequenceMatcher
 from typing import Any
 
-from jarvis.services.calendar_store import (
-    WEEKDAYS,
-    WEEKDAYS_PL,
-    CalendarError,
-    describe_day,
-    describe_occurrence,
-)
+from jarvis.services.calendar_store import WEEKDAYS, CalendarError, describe_day, describe_occurrence
 from jarvis.tools.base import Tool, ToolContext, ToolError, params
 
 _TIME = {"type": "string", "description": "GG:MM"}
 _DATE = {"type": "string", "description": "RRRR-MM-DD"}
 
 
+_EVERY_WEEKDAY_PL = [
+    "w każdy poniedziałek", "w każdy wtorek", "w każdą środę", "w każdy czwartek",
+    "w każdy piątek", "w każdą sobotę", "w każdą niedzielę",
+]
+
+
 def _describe_new_event(event: dict[str, Any], today: date) -> str:
     if event["date"]:
         when = describe_day(date.fromisoformat(event["date"]), today)
     else:
-        days = [WEEKDAYS_PL[WEEKDAYS.index(d)] for d in event["days"]]
-        when = "co tydzień: " + ", ".join(days)
+        days = [_EVERY_WEEKDAY_PL[WEEKDAYS.index(d)] for d in event["days"]]
+        when = days[0] if len(days) == 1 else ", ".join(days[:-1]) + " i " + days[-1]
     text = f"{event['desc']} {when}"
     if event["start"]:
         text += f" o {event['start']}"

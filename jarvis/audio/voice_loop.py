@@ -125,6 +125,7 @@ class VoiceLoop:
         else:
             self._wake.reset()
         self._set_listener("muted" if muted else "idle")
+        self._bus.publish("voice.status")  # UI odświeży stan mikrofonu
 
     def trigger(self) -> None:
         """Przycisk „Mów” – jak słowo wywołania."""
