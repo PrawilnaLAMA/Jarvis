@@ -11,8 +11,10 @@ Działa na Windows i Raspberry Pi 4/5 (64-bit) z ekranem.
 - **Rozmowa** – odpowiada na pytania, pamięta kontekst kilku ostatnich wymian.
 - **Discord** – „napisz do Piotrka i Natana, że spóźnię się 10 minut” (wiadomość wysyła z Twojego konta);
   czyta na głos nowe wiadomości od kontaktów.
-- **Kalendarz** – „dodaj trening w każdą środę o 18”, „co mam jutro?”, „usuń fryzjera”, „otwórz kalendarz”;
-  przypomina o wydarzeniach (domyślnie godzinę wcześniej).
+- **Kalendarz (Domownik)** – obowiązki domowe, lista zakupów i grafik pracy Natalii z aplikacji
+  Domownik (repozytorium HouseholdChoresApp): „co mam dziś do zrobienia?”, „zrobiłem pranie”, „dodaj trening w każdą
+  środę o 18”, „dodaj do zakupów mleko i chleb”, „kupiłem mleko”, „czy Natalia jutro pracuje?”,
+  „otwórz kalendarz”. Zakładka **Kalendarz** pokazuje Domownika.
 - **YouTube i Google** – „puść Bohemian Rhapsody”, „wyszukaj pogodę we Wrocławiu”.
 - **Wyłączanie komputera** – z 30-sekundowym opóźnieniem („anuluj wyłączenie” przerywa).
 - **Cisza** – „stop”, „dobra, wystarczy” – Jarvis nic nie odpowiada.
@@ -55,7 +57,15 @@ Kontakty z Discorda (nazwa, ID kanału, inne formy imienia) ustawia się w **Ust
 Stare wpisy `CHANNEL_<NAZWA>=<id>` z `.env` są importowane automatycznie przy pierwszym starcie.
 
 Pozostałe ustawienia (głos, tempo mowy, czułość „Hey Jarvis”, tryb przerywania, urządzenia audio,
-przypomnienia) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.
+adres Domownika) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.
+
+### Domownik
+
+Kalendarzem jest osobna aplikacja Domownik – Jarvis rozmawia z jej serwerem przez HTTP, więc serwer
+musi być uruchomiony (`start-serwer.bat` w katalogu Domownika). Domyślny adres to
+`http://127.0.0.1:8080`; po przeniesieniu Domownika na Raspberry Pi wpisz jego adres w
+**Ustawienia → Domownik** (np. `http://domownik.local:8080`). Domownik nie zna godzin, więc godzina
+trafia do nazwy („Trening 18:00”), a przypomnień o wydarzeniach nie ma.
 
 ### Limity darmowego planu Groq
 

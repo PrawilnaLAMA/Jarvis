@@ -11,8 +11,8 @@ import requests
 
 from jarvis.conversation import Conversation
 from jarvis.events import EventBus
-from jarvis.services.calendar_store import CalendarStore
 from jarvis.services.discord_client import DiscordClient
+from jarvis.services.domownik_client import DomownikClient
 from jarvis.settings import SettingsStore
 
 
@@ -36,7 +36,7 @@ class ToolContext:
 
     settings: SettingsStore
     bus: EventBus
-    calendar: CalendarStore
+    domownik: DomownikClient  # kalendarz: obowiązki domowe, zakupy, grafik pracy
     discord: DiscordClient
     conversation: Conversation
     open_url: Callable[[str], Any] = webbrowser.open

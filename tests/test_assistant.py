@@ -6,8 +6,8 @@ import pytest
 from jarvis.assistant import Assistant, Interruption, build_context, clean_reply
 from jarvis.conversation import Conversation
 from jarvis.llm import LLMError
-from jarvis.services.calendar_store import CalendarStore
 from jarvis.services.discord_client import DiscordError
+from jarvis.services.domownik_client import DomownikError
 from jarvis.settings import Settings, SettingsStore
 from jarvis.tools import ToolContext, build_tools
 
@@ -45,7 +45,7 @@ class FakeDiscord:
 
 
 @pytest.fixture
-def env(tmp_path, bus):
+def env(tmp_path, bus, domownik):
     settings = SettingsStore(tmp_path / "settings.json")
     settings.update({"contacts": [
         {"name": "PIOTREK", "channel_id": "111111", "aliases": ["Piotr"]},
@@ -55,7 +55,7 @@ def env(tmp_path, bus):
     ctx = ToolContext(
         settings=settings,
         bus=bus,
-        calendar=CalendarStore(tmp_path / "events.json", bus),
+        domownik=domownik,
         discord=FakeDiscord(),
         conversation=conversation,
         open_url=lambda url: opened.append(url),
@@ -104,42 +104,49 @@ def test_discord_message_to_many_with_partial_failure(env):
 
 def test_informational_tool_gets_second_round(env):
     make, ctx, _, _ = env
-    ctx.calendar.add({"desc": "Fryzjer", "date": "2025-11-04", "start": "15:00"})
+    ctx.domownik.agenda_data = {"days": [{"date": "2025-11-04", "weekday": "wtorek", "items": [
+        {"title": "Odkurzanie", "assignees": ["leon"], "kto_label": "Leon", "done": False},
+    ]}], "overdue": [], "grafik": {}}
     assistant, llm = make(
-        {"content": "", "reasoning": "x", "tool_calls": [call("list_calendar_events", {"start_date": "2025-11-04"})]},
-        {"content": "Jutro o piętnastej masz fryzjera."},
+        {"content": "", "reasoning": "x", "tool_calls": [call("house_agenda", {"start_date": "2025-11-04"})]},
+        {"content": "Jutro masz odkurzanie."},
     )
-    assert assistant.handle("co mam jutro") == "Jutro o piętnastej masz fryzjera."
+    assert assistant.handle("co mam jutro") == "Jutro masz odkurzanie."
     second = llm.requests[1]["messages"]
-    assert second[-2]["tool_calls"][0]["function"]["name"] == "list_calendar_events"
+    assert second[-2]["tool_calls"][0]["function"]["name"] == "house_agenda"
     assert "reasoning" not in second[-2]
-    assert second[-1] == {"role": "tool", "tool_call_id": "c1", "content": "Wydarzenia:\n- Fryzjer jutro o 15:00"}
+    assert second[-1] == {"role": "tool", "tool_call_id": "c1", "content": "wtorek 2025-11-04 – twoje: Odkurzanie"}
 
 
-def test_add_event_and_tool_error_is_spoken(env):
+def test_add_chore_and_unreachable_domownik_is_spoken(env):
     make, ctx, _, _ = env
     assistant, _ = make(
-        {"tool_calls": [call("add_calendar_event", {"desc": "trening", "days": ["Wednesday"], "start": "18:00"})]},
-        {"tool_calls": [call("add_calendar_event", {"desc": "bez daty"})]},
+        {"tool_calls": [call("chore_add", {"title": "Trening", "repeat": "tygodniowo", "weekdays": ["Wednesday"],
+                                           "who": "ja"})]},
+        {"tool_calls": [call("chore_add", {"title": "Dentysta 14:00", "start_date": "2025-11-07"})]},
     )
-    reply = assistant.handle("dodaj trening w każdą środę o 18")
-    assert reply == "Dodałem do kalendarza: trening w każdą środę o 18:00."
-    assert assistant.handle("dodaj coś").startswith("Nie dodałem wydarzenia. Podaj datę")
-    assert len(ctx.calendar.all_events()) == 1
+    reply = assistant.handle("dodaj trening w każdą środę")
+    assert reply == "Dodałem do kalendarza: Trening, w każdą środę, dla ciebie."
+    assert ctx.domownik.added[0]["repeat"] == {"type": "tygodniowo", "weekdays": [2]}
+    assert ctx.domownik.added[0]["assignees"] == ["leon"]
+    ctx.domownik.error = DomownikError("Domownik nie odpowiada – czy jego serwer jest uruchomiony?")
+    assert assistant.handle("dodaj dentystę w piątek o 14").startswith("Domownik nie odpowiada")
 
 
-def test_delete_event_fuzzy_and_ambiguous(env):
+def test_delete_chore_fuzzy_and_ambiguous(env):
     make, ctx, _, _ = env
-    ctx.calendar.add({"desc": "spotkanie z promotorem", "date": "2025-11-06"})
-    ctx.calendar.add({"desc": "trening", "date": "2025-11-06"})
-    ctx.calendar.add({"desc": "trening", "date": "2025-11-07"})
+    ctx.domownik.chores_data = [
+        {"id": "a", "title": "Spotkanie z promotorem", "repeat_label": "jednorazowo"},
+        {"id": "b", "title": "Podlać kwiaty w salonie", "repeat_label": "co 3 dni"},
+        {"id": "c", "title": "Podlać kwiaty w sypialni", "repeat_label": "co 5 dni"},
+    ]
     assistant, _ = make(
-        {"tool_calls": [call("delete_calendar_event", {"query": "promotor"})]},
-        {"tool_calls": [call("delete_calendar_event", {"query": "trening"})]},
+        {"tool_calls": [call("chore_delete", {"query": "promotor"})]},
+        {"tool_calls": [call("chore_delete", {"query": "podlać kwiaty"})]},
     )
-    assert assistant.handle("usuń promotora") == "Usunąłem z kalendarza: spotkanie z promotorem w czwartek."
-    assert assistant.handle("usuń trening").startswith("Pasuje kilka wydarzeń")
-    assert len(ctx.calendar.all_events()) == 2
+    assert assistant.handle("usuń promotora") == "Usunąłem z kalendarza: Spotkanie z promotorem."
+    assert assistant.handle("usuń podlewanie kwiatów").startswith("Pasuje kilka obowiązków")
+    assert ctx.domownik.deleted == ["a"]
 
 
 def test_stay_silent_returns_none(env, recorder):
@@ -195,7 +202,7 @@ def test_system_prompt_is_static_and_context_goes_to_user_message(env):
 def test_tools_without_contacts_hide_discord():
     names = {t.name for t in build_tools(Settings())}
     assert "send_discord_message" not in names
-    assert {"play_youtube", "add_calendar_event", "stay_silent"} <= names
+    assert {"play_youtube", "house_agenda", "chore_add", "shopping_update", "stay_silent"} <= names
 
 
 def test_clean_reply_links():

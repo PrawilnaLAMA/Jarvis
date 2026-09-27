@@ -9,7 +9,7 @@ import { Orb } from './orb.js';
 import { initSubtitles } from './subtitles.js';
 import { initControls } from './controls.js';
 import { initChat } from './chat.js';
-import { initCalendar } from './calendar.js';
+import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
 
 const VIEWS = ['jarvis', 'calendar', 'settings'];
@@ -61,7 +61,7 @@ const views = {
     onShow: () => orb.setActive(true),
     onHide: () => orb.setActive(false),
   },
-  calendar: initCalendar(ctx),
+  calendar: initDomownik(ctx),
   settings: initSettings({
     ...ctx,
     onDirtyChange: (dirty) => {

@@ -67,10 +67,22 @@ def test_secrets_roundtrip_and_legacy_token(tmp_path, monkeypatch):
         secrets.set("PATH", "x")
 
 
-def test_migration_copies_events_without_reminded(tmp_path):
-    src = tmp_path / "old_events.json"
-    src.write_text(json.dumps([{"id": "1", "desc": "x", "date": "2025-01-01", "reminded": True}]), encoding="utf-8")
-    dst = tmp_path / "data" / "events.json"
-    migrate_legacy_data(src, dst, tmp_path / "none.json", tmp_path / "data" / "conv.json")
-    assert json.loads(dst.read_text(encoding="utf-8")) == [{"id": "1", "desc": "x", "date": "2025-01-01"}]
-    assert not (tmp_path / "data" / "conv.json").exists()
+def test_domownik_url_validation(tmp_path):
+    store = SettingsStore(tmp_path / "settings.json")
+    assert store.get().domownik.url == "http://127.0.0.1:8080"
+    assert store.update({"domownik": {"url": "http://domownik.local:8080/"}}).domownik.url == "http://domownik.local:8080/"
+    with pytest.raises(SettingsError):
+        store.update({"domownik": {"url": "domownik.local"}})
+
+
+def test_migration_copies_conversation_once(tmp_path):
+    src = tmp_path / "old_conv.json"
+    src.write_text(json.dumps([{"role": "user", "content": "cześć"}]), encoding="utf-8")
+    dst = tmp_path / "data" / "conv.json"
+    migrate_legacy_data(src, dst)
+    assert json.loads(dst.read_text(encoding="utf-8")) == [{"role": "user", "content": "cześć"}]
+    src.write_text("[]", encoding="utf-8")
+    migrate_legacy_data(src, dst)  # istniejących danych nie nadpisuje
+    assert json.loads(dst.read_text(encoding="utf-8")) != []
+    migrate_legacy_data(tmp_path / "none.json", tmp_path / "data" / "other.json")
+    assert not (tmp_path / "data" / "other.json").exists()

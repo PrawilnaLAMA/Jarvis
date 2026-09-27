@@ -139,29 +139,20 @@
       </aside>
     </section>
 
-    <!-- Kalendarz -->
+    <!-- Kalendarz = aplikacja Domownik (obowiązki, zakupy, grafik) osadzona z jej serwera; js/domownik.js -->
     <section class="view view-calendar" id="view-calendar" data-view="calendar" aria-label="Kalendarz" hidden>
-      <div class="cal-main">
-        <header class="cal-head">
-          <h1 class="cal-title" id="cal-title" aria-live="polite"></h1>
-          <div class="cal-nav">
-            <button type="button" class="icon-btn" id="cal-prev" aria-label="Poprzedni miesiąc" title="Poprzedni miesiąc">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg>
-            </button>
-            <button type="button" class="btn" id="cal-today">Dziś</button>
-            <button type="button" class="icon-btn" id="cal-next" aria-label="Następny miesiąc" title="Następny miesiąc">
-              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg>
-            </button>
-          </div>
-        </header>
-        <div class="cal-status" id="cal-status" role="status" hidden></div>
-        <div class="cal-weekdays" aria-hidden="true">
-          <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span class="is-weekend">So</span><span class="is-weekend">Nd</span>
+      <iframe class="dom-frame" id="dom-frame" title="Domownik – kalendarz, zakupy i obowiązki" hidden></iframe>
+      <div class="dom-offline" id="dom-offline" role="status" hidden>
+        <h1 class="dom-offline-title">Domownik nie odpowiada</h1>
+        <p class="dom-offline-text" id="dom-offline-text"></p>
+        <div class="dom-offline-actions">
+          <button type="button" class="btn" id="dom-retry">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>
+            Spróbuj ponownie
+          </button>
+          <button type="button" class="btn btn-ghost" id="dom-settings">Zmień adres w ustawieniach</button>
         </div>
-        <div class="cal-grid" id="cal-grid"></div>
       </div>
-      <div class="scrim" id="day-scrim" hidden></div>
-      <aside class="day-panel" id="day-panel" aria-label="Wybrany dzień"></aside>
     </section>
 
     <!-- Ustawienia (formularz budowany w js/settings.js) -->

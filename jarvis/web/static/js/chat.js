@@ -1,12 +1,11 @@
-// Panel rozmowy: dziennik zdarzeń (polecenia, odpowiedzi, narzędzia, Discord, przypomnienia,
-// komunikaty) i pole do wpisywania poleceń. Na wąskich ekranach działa jako wysuwana szuflada.
+// Panel rozmowy: dziennik zdarzeń (polecenia, odpowiedzi, narzędzia, Discord, komunikaty) i pole do wpisywania poleceń. Na wąskich ekranach działa jako wysuwana szuflada.
 
 import { $, h, icon, clear, onMediaChange } from './dom.js';
 import { formatClock, formatLongDate, toISODate, addDays } from './dates.js';
 import { capitalize } from './i18n.js';
 import { assistantState } from './store.js';
 
-const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'reminder', 'notice'];
+const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'notice'];
 const MAX_ITEMS = 300;
 const MAX_DETAILS = 1500;
 const NOTICE_ICONS = { info: 'info', warning: 'warning', error: 'error' };
@@ -255,15 +254,6 @@ const RENDERERS = {
         timeEl(ts),
       ),
       h('p', { class: 'entry-text' }, str(data.content)),
-    );
-  },
-
-  reminder(data, ts, replay) {
-    return h(
-      'li',
-      { class: `entry entry-reminder${replay ? '' : ' is-fresh'}` },
-      h('div', { class: 'entry-head' }, icon('bell'), h('span', { class: 'entry-label' }, 'Przypomnienie'), timeEl(ts)),
-      h('p', { class: 'entry-text' }, str(data.text)),
     );
   },
 

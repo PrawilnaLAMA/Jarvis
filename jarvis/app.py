@@ -12,10 +12,9 @@ from jarvis.conversation import Conversation
 from jarvis.events import EventBus
 from jarvis.llm import LLMClient, providers_from
 from jarvis.migration import migrate_legacy_data
-from jarvis.services.calendar_store import CalendarStore
 from jarvis.services.discord_client import DiscordClient
 from jarvis.services.discord_monitor import DiscordMonitor
-from jarvis.services.reminders import ReminderService
+from jarvis.services.domownik_client import DomownikClient
 from jarvis.settings import Secrets, SettingsStore
 from jarvis.state import StatusTracker
 from jarvis.tools import ToolContext
@@ -40,7 +39,8 @@ class JarvisApp:
             data_dir / "settings.json", on_change=lambda _: self.bus.publish("settings.changed")
         )
         self.tracker = StatusTracker(self.bus)
-        self.calendar = CalendarStore(data_dir / "events.json", self.bus)
+        # kalendarzem jest Domownik – adres z ustawień czytany przy każdym zapytaniu (zmiana działa od razu)
+        self.domownik = DomownikClient(lambda: self.settings.get().domownik.url)
         self.conversation = Conversation(
             data_dir / "conversation.json", lambda: self.settings.get().llm.history_messages
         )
@@ -49,7 +49,7 @@ class JarvisApp:
             lambda: providers_from(self.settings.get(), self.secrets),
             on_limit_wait=lambda s: self.bus.notice(f"Limit zapytań do modelu – czekam {s:.0f} s…", "warning"),
         )
-        tool_context = ToolContext(self.settings, self.bus, self.calendar, self.discord, self.conversation)
+        tool_context = ToolContext(self.settings, self.bus, self.domownik, self.discord, self.conversation)
         self.assistant = Assistant(self.llm, tool_context, self.settings, self.bus, self.conversation)
         self.stop_event = threading.Event()
 
@@ -63,9 +63,6 @@ class JarvisApp:
         else:
             self.tracker.set_listener("idle")
 
-        self.reminders = ReminderService(
-            self.calendar, self.settings, self.bus, self.announce, data_dir / "reminders_state.json"
-        )
         self.discord_monitor = DiscordMonitor(self.discord, self.settings, self.bus, self.announce)
         self.bus.subscribe(lambda _: self.publish_status(), {"voice.status", "settings.changed"})
 
@@ -74,8 +71,7 @@ class JarvisApp:
     def start(self) -> None:
         if self.voice:
             self.voice.start(self.stop_event)
-        for name, target in (("reminders", self.reminders.run), ("discord", self.discord_monitor.run)):
-            threading.Thread(target=target, args=(self.stop_event,), name=name, daemon=True).start()
+        threading.Thread(target=self.discord_monitor.run, args=(self.stop_event,), name="discord", daemon=True).start()
         if not self.llm.configured:
             self.bus.notice("Brak klucza GROQ_API_KEY – dodaj go w Ustawieniach, żeby Jarvis mógł odpowiadać.",
                             "warning")
@@ -108,7 +104,7 @@ class JarvisApp:
         self.respond(text, "voice", barge_in, speak_async=False)
 
     def announce(self, text: str) -> None:
-        """Komunikat systemowy (przypomnienie, wiadomość z Discorda) – czytany na głos, jeśli jest dźwięk."""
+        """Komunikat systemowy (np. wiadomość z Discorda) – czytany na głos, jeśli jest dźwięk."""
         if self.voice:
             self.voice.say(text, "notice")
 
@@ -126,6 +122,7 @@ class JarvisApp:
             "voice": voice,
             "llm_configured": self.llm.configured,
             "discord_configured": self.discord.configured,
+            "domownik_url": self.settings.get().domownik.url,
         }
 
     def publish_status(self) -> None:

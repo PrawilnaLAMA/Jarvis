@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from jarvis.app import JarvisApp
+from jarvis.services.domownik_client import DomownikError
 from jarvis.web.server import create_app
 
 
@@ -40,24 +41,12 @@ def test_command_returns_reply(client):
     assert client.post("/api/command", json={"text": " "}).status_code == 400
 
 
-def test_calendar_crud(client):
-    created = client.post("/api/calendar/events", json={"desc": "Fryzjer", "date": "2025-11-04", "start": "15:00"})
-    assert created.status_code == 201
-    event_id = created.json()["event"]["id"]
-    assert client.post("/api/calendar/events", json={"desc": "x"}).json()["detail"].startswith("Podaj datę")
-
-    updated = client.put(f"/api/calendar/events/{event_id}", json={"start": "16:00"})
-    assert updated.json()["event"]["start"] == "16:00"
-    assert client.put("/api/calendar/events/nope", json={"start": "16:00"}).status_code == 404
-
-    occ = client.get("/api/calendar/occurrences", params={"start": "2025-11-01", "end": "2025-11-30"}).json()
-    assert occ["occurrences"][0]["occurrence_date"] == "2025-11-04"
-    too_long = client.get("/api/calendar/occurrences", params={"start": "2025-01-01", "end": "2025-12-31"})
-    assert too_long.status_code == 400
-
-    assert client.delete(f"/api/calendar/events/{event_id}").status_code == 204
-    assert client.delete(f"/api/calendar/events/{event_id}").status_code == 404
-    assert client.get("/api/calendar/events").json() == {"events": []}
+def test_domownik_status(client, app, domownik):
+    app.domownik = domownik  # bez sieci – prawdziwy Domownik może akurat działać na tym komputerze
+    assert client.get("/api/domownik/status").json() == {"url": "http://domownik.test", "ok": True, "error": None}
+    domownik.error = DomownikError("Domownik nie odpowiada.")
+    assert client.get("/api/domownik/status").json()["ok"] is False
+    assert app.status()["domownik_url"] == "http://127.0.0.1:8080"
 
 
 def test_settings_validation_and_secrets(client, app):

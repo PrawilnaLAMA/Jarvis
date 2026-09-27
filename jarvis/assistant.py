@@ -12,7 +12,7 @@ from typing import Any
 from jarvis.conversation import Conversation
 from jarvis.events import EventBus
 from jarvis.llm import LLMClient, LLMError
-from jarvis.services.calendar_store import MONTHS_GENITIVE_PL, WEEKDAYS_PL
+from jarvis.polish import MONTHS_GENITIVE_PL, WEEKDAYS_PL
 from jarvis.settings import Settings, SettingsStore
 from jarvis.tools import Tool, ToolContext, ToolError, build_tools
 
@@ -33,7 +33,10 @@ def build_system_prompt(settings: Settings) -> str:
     """Stała część promptu. Nie wstawiamy tu nic zmiennego (np. godziny), bo stały początek
     promptu (razem z definicjami narzędzi) trafia do cache Groq – szybciej i mniej zużywa limit."""
     lines = [
-        "Jesteś Jarvis – osobisty asystent głosowy. Mówisz po polsku.",
+        "Jesteś Jarvis – osobisty asystent głosowy Leona. Mówisz po polsku. Z Leonem mieszka Natalia.",
+        "- Kalendarz to aplikacja Domownik: obowiązki domowe (czyje, na zmianę), lista zakupów i grafik "
+        "pracy Natalii. „Ja”/„mam” w poleceniach to Leon; w danych jego obowiązki są oznaczone „twoje”, "
+        "a pozostałe nie są jego.",
         "- Odpowiadaj krótko (1–2 zdania), językiem mówionym, bez markdown, list i emotek – to jest czytane na głos.",
         "- Mów swobodnie, jak człowiek w rozmowie: pełne słowa zamiast skrótów i symboli, bez nawiasów, "
         "krótsze zdania z przecinkami w naturalnych miejscach.",
@@ -42,7 +45,7 @@ def build_system_prompt(settings: Settings) -> str:
         "z ostatniej wypowiedzi.",
         "- Daty względne („jutro”, „w piątek”) bierz z listy dni w <kontekst>, nie licz sam; „w piątek” = najbliższy.",
         "- Tekst pochodzi z rozpoznawania mowy i może mieć błędy – domyśl się sensu, a gdy nie wiesz, dopytaj.",
-        "- Nie zgaduj zawartości kalendarza – sprawdź narzędziem.",
+        "- Nie zgaduj zawartości kalendarza, zakupów ani grafiku – sprawdź narzędziem.",
         "- <kontekst> dodaje system, użytkownik go nie widzi.",
     ]
     aliases = [f"{c.name} = {', '.join(c.aliases)}" for c in settings.contacts if c.aliases]

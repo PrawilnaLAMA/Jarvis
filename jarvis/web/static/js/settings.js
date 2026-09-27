@@ -60,6 +60,15 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const previewBtn = h('button', { type: 'button', class: 'btn' }, icon('play'), 'Odsłuchaj');
   previewBtn.addEventListener('click', preview);
 
+  const domownikUrl = textField({
+    label: 'Adres serwera',
+    hint: 'Na tym komputerze: http://127.0.0.1:8080. Po przeniesieniu na Raspberry Pi – jego adres w sieci, np. http://domownik.local:8080.',
+    placeholder: 'http://127.0.0.1:8080',
+  });
+  const domownikMsg = h('span', { class: 'inline-msg', role: 'status' });
+  const domownikBtn = h('button', { type: 'button', class: 'btn' }, icon('refresh'), 'Sprawdź połączenie');
+  domownikBtn.addEventListener('click', checkDomownik);
+
   function fields(cardId, section, live = false) {
     return (key, control) => {
       controls.push({ card: cardId, section, key, control, baseline: null, live });
@@ -79,7 +88,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     });
   }
   const inF = fields('voice-in', 'voice');
-  const remF = fields('reminders', 'reminders');
+  const domF = fields('domownik', 'domownik');
   const discF = fields('discord', 'discord');
   const uiF = fields('ui', 'ui');
 
@@ -131,9 +140,9 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       inF('output_device', outputDevice),
     ),
     card(
-      'reminders', 'Przypomnienia', { section: 'reminders' },
-      remF('lead_minutes', numberField({ label: 'Wyprzedzenie przypomnień', hint: 'Ile minut przed wydarzeniem przypominać (0–1440).', min: 0, max: 1440, integer: true, unit: 'min' })),
-      remF('all_day_hour', numberField({ label: 'Godzina przypomnień całodniowych', hint: 'O której przypominać o wydarzeniach bez godziny (0–23).', min: 0, max: 23, integer: true, unit: 'godz.' })),
+      'domownik', 'Domownik', { section: 'domownik', desc: 'Kalendarz Jarvisa: obowiązki domowe, lista zakupów i grafik Natalii. Jarvis łączy się z serwerem Domownika, który musi być uruchomiony.' },
+      domF('url', domownikUrl),
+      h('div', { class: 'field field-inline' }, domownikBtn, domownikMsg),
     ),
     card(
       'discord', 'Discord', { section: 'discord' },
@@ -509,9 +518,28 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     }
   }
 
-  function setInline(text, kind) {
-    previewMsg.textContent = text;
-    previewMsg.className = `inline-msg${kind ? ` is-${kind}` : ''}`;
+  function setInline(text, kind, el = previewMsg) {
+    el.textContent = text;
+    el.className = `inline-msg${kind ? ` is-${kind}` : ''}`;
+  }
+
+  /** Sprawdza zapisany adres – przy niezapisanej zmianie adresu najpierw prosi o zapis. */
+  async function checkDomownik() {
+    if (computeDirty().has('domownik')) {
+      setInline('Najpierw zapisz nowy adres.', 'error', domownikMsg);
+      return;
+    }
+    domownikBtn.disabled = true;
+    setInline('Sprawdzam…', '', domownikMsg);
+    try {
+      const res = await api.domownikStatus();
+      if (res && res.ok) setInline('Domownik odpowiada.', 'ok', domownikMsg);
+      else setInline((res && res.error) || 'Domownik nie odpowiada.', 'error', domownikMsg);
+    } catch (err) {
+      setInline(`Nie udało się sprawdzić: ${err.message}`, 'error', domownikMsg);
+    } finally {
+      domownikBtn.disabled = false;
+    }
   }
 
   // --- stan systemu ---

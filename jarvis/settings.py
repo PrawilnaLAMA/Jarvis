@@ -60,9 +60,10 @@ class VoiceSettings:
 
 
 @dataclass
-class ReminderSettings:
-    lead_minutes: int = 60
-    all_day_hour: int = 8  # o której przypominać o wydarzeniach bez godziny
+class DomownikSettings:
+    # serwer aplikacji Domownik (obowiązki domowe, zakupy, grafik) – kalendarz Jarvisa;
+    # po przeniesieniu na Raspberry Pi np. http://domownik.local:8080 albo adres Tailscale
+    url: str = "http://127.0.0.1:8080"
 
 
 @dataclass
@@ -81,7 +82,7 @@ class Settings:
     contacts: list[Contact] = field(default_factory=list)
     llm: LLMSettings = field(default_factory=LLMSettings)
     voice: VoiceSettings = field(default_factory=VoiceSettings)
-    reminders: ReminderSettings = field(default_factory=ReminderSettings)
+    domownik: DomownikSettings = field(default_factory=DomownikSettings)
     discord: DiscordSettings = field(default_factory=DiscordSettings)
     ui: UISettings = field(default_factory=UISettings)
 
@@ -174,11 +175,8 @@ def validate(settings: Settings) -> list[str]:
         errors.append("Wysokość głosu musi być między -30 a +30 Hz.")
     if not 0 <= v.volume <= 1.5:
         errors.append("Głośność musi być między 0 a 1,5.")
-    r = settings.reminders
-    if not 0 <= r.lead_minutes <= 24 * 60:
-        errors.append("Wyprzedzenie przypomnień musi być między 0 a 1440 minut.")
-    if not 0 <= r.all_day_hour <= 23:
-        errors.append("Godzina przypomnień całodniowych musi być między 0 a 23.")
+    if not re.fullmatch(r"https?://[^\s/]+(:\d+)?(/\S*)?", settings.domownik.url.strip()):
+        errors.append("Adres Domownika musi zaczynać się od http:// lub https://, np. http://127.0.0.1:8080.")
     if not 1 <= settings.discord.poll_seconds <= 300:
         errors.append("Odświeżanie Discorda musi być między 1 a 300 s.")
     return errors

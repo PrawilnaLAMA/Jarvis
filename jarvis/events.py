@@ -10,11 +10,9 @@ Tematy (topic) i ich dane:
 - tts.word         {index, text}
 - tts.end          {interrupted: bool, spoken: str}
 - discord.message  {author, content, channel_id}
-- reminder         {text, event_id}
 - notice           {text, level: info|warning|error}
-- calendar.changed {}
 - settings.changed {}
-- ui.navigate      {view}
+- ui.navigate      {view: jarvis|calendar|settings}
 """
 
 import logging

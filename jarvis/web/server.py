@@ -10,7 +10,6 @@ import mimetypes
 import threading
 import time
 from collections import deque
-from datetime import date, timedelta
 from functools import lru_cache
 from typing import Any
 
@@ -23,12 +22,12 @@ from jarvis import paths
 from jarvis.app import JarvisApp
 from jarvis.events import Event, EventBus
 from jarvis.llm import LLMError
-from jarvis.services.calendar_store import CalendarError
+from jarvis.services.domownik_client import DomownikError
 from jarvis.settings import SECRET_KEYS, SettingsError
 
 log = logging.getLogger(__name__)
 
-HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "reminder", "notice"}
+HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "notice"}
 MAX_QUEUE = 500
 
 # Windows potrafi mieć w rejestrze .js jako text/plain – przeglądarka odrzuciłaby wtedy moduły ES
@@ -73,13 +72,6 @@ def _error(status: int, detail: str, **extra: Any) -> JSONResponse:
     return JSONResponse({"detail": detail, **extra}, status_code=status)
 
 
-def _parse_day(value: str, name: str) -> date:
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        raise HTTPException(400, f"Nieprawidłowa data ({name}): {value}") from None
-
-
 def create_app(jarvis: JarvisApp) -> FastAPI:
     api = FastAPI(title="Jarvis", docs_url=None, redoc_url=None)
     hub = WebSocketHub(jarvis.bus)
@@ -103,41 +95,16 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
             raise HTTPException(400, "Puste polecenie.")
         return {"reply": jarvis.respond(text, "text")}
 
-    # --- kalendarz ---
+    # --- kalendarz (Domownik) ---
 
-    @api.get("/api/calendar/events")
-    def list_events() -> dict[str, Any]:
-        return {"events": jarvis.calendar.all_events()}
-
-    @api.get("/api/calendar/occurrences")
-    def occurrences(start: str, end: str) -> dict[str, Any]:
-        first, last = _parse_day(start, "start"), _parse_day(end, "end")
-        if last < first or last - first > timedelta(days=100):
-            raise HTTPException(400, "Nieprawidłowy zakres dat (maksymalnie 100 dni).")
-        return {"occurrences": [o.to_dict() for o in jarvis.calendar.occurrences(first, last)]}
-
-    @api.post("/api/calendar/events", status_code=201, response_model=None)
-    def add_event(body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
+    @api.get("/api/domownik/status")
+    def domownik_status() -> dict[str, Any]:
+        """Czy serwer Domownika odpowiada – UI pokazuje wtedy jego kalendarz, a jeśli nie, podpowiedź."""
         try:
-            return {"event": jarvis.calendar.add(body)}
-        except CalendarError as e:
-            return _error(400, str(e))
-
-    @api.put("/api/calendar/events/{event_id}", response_model=None)
-    def update_event(event_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
-        try:
-            event = jarvis.calendar.update(event_id, body)
-        except CalendarError as e:
-            return _error(400, str(e))
-        if event is None:
-            return _error(404, "Nie znaleziono wydarzenia.")
-        return {"event": event}
-
-    @api.delete("/api/calendar/events/{event_id}", status_code=204, response_model=None)
-    def delete_event(event_id: str) -> Response | JSONResponse:
-        if not jarvis.calendar.remove(event_id):
-            return _error(404, "Nie znaleziono wydarzenia.")
-        return Response(status_code=204)
+            jarvis.domownik.ping()
+        except DomownikError as e:
+            return {"url": jarvis.domownik.url, "ok": False, "error": str(e)}
+        return {"url": jarvis.domownik.url, "ok": True, "error": None}
 
     # --- ustawienia ---
 

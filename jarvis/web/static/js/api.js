@@ -80,17 +80,11 @@ function errorList(data) {
   return [];
 }
 
-const enc = encodeURIComponent;
-
 export const api = {
   status: () => request('GET', 'api/status'),
   command: (text) => request('POST', 'api/command', { text }),
 
-  events: () => request('GET', 'api/calendar/events'),
-  occurrences: (start, end) => request('GET', `api/calendar/occurrences?start=${enc(start)}&end=${enc(end)}`),
-  createEvent: (event) => request('POST', 'api/calendar/events', event),
-  updateEvent: (id, event) => request('PUT', `api/calendar/events/${enc(id)}`, event),
-  deleteEvent: (id) => request('DELETE', `api/calendar/events/${enc(id)}`),
+  domownikStatus: () => request('GET', 'api/domownik/status'),
 
   settings: () => request('GET', 'api/settings'),
   saveSettings: (patch) => request('PUT', 'api/settings', patch),
