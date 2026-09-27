@@ -1,4 +1,5 @@
 @echo off
-cd /d "C:\Users\Lemon\OneDrive\Dokumenty\GitHub\Jarvis"
-py core/main.py
-pause
+rem Uruchamia Jarvisa z katalogu, w którym leży ten plik (dodatkowe argumenty, np. --browser, są przekazywane dalej)
+cd /d "%~dp0"
+py -m jarvis %*
+if errorlevel 1 pause

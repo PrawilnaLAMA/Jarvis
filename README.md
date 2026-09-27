@@ -1,73 +1,93 @@
-# Jarvis Assistant
+# Jarvis
 
-## Prerequisites
+Polski asystent głosowy z interfejsem w HTML. Mówisz „Hej Jarvis…”, a on rozumie polecenie
+(model językowy z narzędziami), wykonuje je i odpowiada naturalnym głosem. W trakcie odpowiedzi
+możesz mu przerwać – przestanie mówić i odniesie się do tego, co powiedziałeś.
 
-1. **Install Python**
-   - Ensure Python 3.11 or higher is installed on your system. You can download it from [Python's official website](https://www.python.org/).
+Działa na Windows i Raspberry Pi 4/5 (64-bit) z ekranem.
 
-2. **Install Required Libraries**
-   - Install the required Python libraries listed in `requirements.txt` using:
-     ```cmd
-     pip install -r requirements.txt
-     ```
+## Co potrafi
 
-## Steps to Run the Project
+- **Rozmowa** – odpowiada na pytania, pamięta kontekst kilku ostatnich wymian.
+- **Discord** – „napisz do Piotrka i Natana, że spóźnię się 10 minut” (wiadomość wysyła z Twojego konta);
+  czyta na głos nowe wiadomości od kontaktów.
+- **Kalendarz** – „dodaj trening w każdą środę o 18”, „co mam jutro?”, „usuń fryzjera”, „otwórz kalendarz”;
+  przypomina o wydarzeniach (domyślnie godzinę wcześniej).
+- **YouTube i Google** – „puść Bohemian Rhapsody”, „wyszukaj pogodę we Wrocławiu”.
+- **Wyłączanie komputera** – z 30-sekundowym opóźnieniem („anuluj wyłączenie” przerywa).
+- **Cisza** – „stop”, „dobra, wystarczy” – Jarvis nic nie odpowiada.
 
-1. **Configure the `.env` File** (Opitional)
-   - Create a `.env` file in the root directory of the project.
-   - Add the following variables:
-     ```env
-        USER_DISCORD_TOKEN=<token_of_your_account>
-        JARVIS_TOKEN=<token_of_your_jarvis_account>
-        DISCORD_CHANNEL_ID=<id_of_the_channel_that_jarvis_will_read>
-        CHANNEL_<NAME>=<channel_id_you_share_with_someone>
-     ```
-   - `<token_of_your_account>` - discord token allowing to send messages from your account
-   - `<token_of_your_jarvis_account>` - discord token allowing to send and read messages from jarvis' account
-   - `<id_of_the_channel_that_jarvis_will_read>` - id of the channel that jarvis will read to recognize commands
-   - `<channel_id_you_share_with_someone>` - channel id you share with someone. Jarvis needs this to send messages to this channel.
-   - `<NAME>` - text
-   You can add as many CHANNEL_<NAME> channels as you want, but <NAME> must be different each time.
+Po odpowiedzi Jarvis przez kilka sekund słucha dalej, więc można kontynuować bez „Hej Jarvis”.
 
-2. **Run the Main Script**
-   - Open a command prompt in the project directory.
-   - Execute the main script to start the Jarvis assistant:
-     ```cmd
-     python core/main.py
-     ```
+## Instalacja
 
-## Functionalities
+### Windows
 
-1. **Discord Integration**
-   - The assistant can interact with Discord servers using the bot token provided in the `.env` file.
-   - Commands include sending messages, searching YouTube, and more.
+Wymagany Python 3.11+.
 
-2. **Voice Commands**
-   - Jarvis can process voice commands using the `speech_handler` module.
-   - Ensure your microphone is configured correctly.
+```cmd
+py -m pip install -r requirements.txt
+```
 
-3. **Possibilities**
-   - Look at the commands folder to check the possibilities.
+Uruchomienie: dwuklik w `jarvis.bat` albo `py -m jarvis`.
 
+### Raspberry Pi 4/5 (Raspberry Pi OS 64-bit)
 
-## Troubleshooting
+```bash
+make pi-setup   # pakiety systemowe (GTK/WebKit, PortAudio) + venv + zależności
+make pi-run     # Jarvis na pełnym ekranie
+```
 
-### Common Issues
+Przy pierwszym uruchomieniu pobierane są modele wykrywania „Hey Jarvis” (kilka MB, do `data/models`).
 
-1. **Missing Dependencies**
-   - If the application fails due to missing Python dependencies, ensure all required packages are installed using `pip install -r requirements.txt`.
+## Konfiguracja
 
-2. **Environment Variables Not Set**
-   - Ensure the `.env` file is correctly configured with all required variables.
+Klucze API trzymane są w pliku `.env` (wzór: `.env.example`), ale najprościej wpisać je w aplikacji:
+**Ustawienia → Klucze API**.
 
-3. **Python Version Compatibility**
-   - Ensure you are using Python 3.11 or higher.
+| Klucz | Do czego |
+|---|---|
+| `GROQ_API_KEY` | model językowy i rozpoznawanie mowy (Whisper) – [console.groq.com](https://console.groq.com/keys) |
+| `CEREBRAS_API_KEY` | opcjonalny zapasowy model, używany, gdy Groq zwróci limit zapytań |
+| `DISCORD_USER_TOKEN` | wysyłanie i czytanie wiadomości na Discordzie |
 
-## Notes
+Kontakty z Discorda (nazwa, ID kanału, inne formy imienia) ustawia się w **Ustawienia → Kontakty**.
+Stare wpisy `CHANNEL_<NAZWA>=<id>` z `.env` są importowane automatycznie przy pierwszym starcie.
 
-- The application uses various modules located in the `api`, `commands`, `core`, and `readers` directories.
-- Modify the `requirements.txt` as needed to include additional dependencies.
+Pozostałe ustawienia (głos, tempo mowy, czułość „Hey Jarvis”, tryb przerywania, urządzenia audio,
+przypomnienia) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.
 
-## Additional Information
+### Limity darmowego planu Groq
 
-- For more details on Python, visit [Python Documentation](https://docs.python.org/3/).
+Darmowy plan to ok. 8 000 tokenów na minutę, a jedno polecenie zużywa ok. 1 300–1 500. Przy kilku
+poleceniach pod rząd Jarvis może chwilę poczekać na limit. Rozwiązania: dodać `CEREBRAS_API_KEY`
+(darmowy zapas) albo włączyć płatny plan Developer w Groq – przy domowym użyciu to grosze.
+
+## Uruchamianie – opcje
+
+```
+py -m jarvis              # okno aplikacji
+py -m jarvis --browser    # interfejs w przeglądarce
+py -m jarvis --no-voice   # bez mikrofonu i dźwięku, tylko komendy wpisywane
+py -m jarvis --fullscreen # pełny ekran
+py -m jarvis --debug      # szczegółowe logi i narzędzia deweloperskie w oknie
+```
+
+Logi: `data/jarvis.log`.
+
+## Przerywanie a głośniki
+
+Mikrofon słyszy też głos Jarvisa. Filtr echa rozpoznaje, że mówisz Ty, gdy Twój głos w mikrofonie
+jest co najmniej tak głośny jak echo z głośników – wtedy Jarvis ścisza się i milknie po ok. sekundzie.
+Przy bardzo głośnych głośnikach blisko mikrofonu przerwij mówiąc „Hej Jarvis” albo ustaw tryb
+przerywania „Tylko Hej Jarvis”. Najlepiej działa mikrofon blisko Ciebie albo słuchawki.
+
+## Dla programistów
+
+```
+py -m pip install -r requirements-dev.txt
+py -m pytest          # testy
+py -m ruff check .    # lint
+```
+
+Architekturę opisuje `CLAUDE.md`. Skrypty planu zajęć USOS są w `scripts/usos/`.
