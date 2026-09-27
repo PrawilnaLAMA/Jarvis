@@ -1,0 +1,135 @@
+import numpy as np
+import pytest
+
+from jarvis.audio.bargein import DEFAULT_COUPLING, DuckTest, EchoGate, classify_duck
+from jarvis.audio.devices import resample, rms, ui_level
+from jarvis.audio.recorder import UtteranceRecorder
+from jarvis.audio.stt import to_wav, vocabulary_prompt
+from jarvis.audio.transcript import clean_transcript, echo_similarity, is_echo, is_hallucination, strip_wake_phrase
+from jarvis.audio.tts import locate_words, split_sentences
+from jarvis.settings import Settings
+
+FRAME = np.zeros(1280, dtype=np.int16)
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Hej Jarvis, puść muzykę.", "puść muzykę."),
+        ("hey jarvis która godzina", "która godzina"),
+        ("Dżarwis, napisz do Piotrka", "napisz do Piotrka"),
+        ("i wtedy mówię. Hej Jarvis! Dodaj spotkanie", "Dodaj spotkanie"),
+        ("Puść muzykę", "Puść muzykę"),
+        ("Hej Jarvis.", ""),
+    ],
+)
+def test_strip_wake_phrase(text, expected):
+    assert strip_wake_phrase(text) == expected
+
+
+def test_hallucinations_are_dropped():
+    assert is_hallucination("Dziękuję.")
+    assert is_hallucination("Napisy stworzone przez społeczność Amara.org")
+    assert is_hallucination("Hej Jarvis, Piotrek, Natan.", prompt="Hej Jarvis, Piotrek, Natan.")
+    assert not is_hallucination("Dziękuję, to wszystko na dziś, wyłącz muzykę")
+    assert clean_transcript("Hej Jarvis. Dzięki za obejrzenie!") == ""
+    assert clean_transcript("Hej Jarvis, co mam jutro?") == "co mam jutro?"
+
+
+def test_echo_detection():
+    said = "Rzym został założony w siedemset pięćdziesiątym trzecim roku przed naszą erą przez Romulusa."
+    assert is_echo("został założony w siedemset pięćdziesiątym", said)
+    assert not is_echo("stop, powiedz mi raczej o Grecji", said)
+    assert echo_similarity("", said) == 0.0
+
+
+def test_echo_gate_learns_coupling_and_ignores_echo():
+    gate = EchoGate()
+    # Jarvis mówi, mikrofon słyszy echo na poziomie 0.3 × wyjście (VAD też widzi „mowę”)
+    for _ in range(20):
+        assert not gate.update(mic_level=0.03, vad_prob=0.9, output_level=0.1, noise_floor=0.002)
+    assert gate.learned and gate.coupling == pytest.approx(0.3)
+    # użytkownik mówi wyraźnie głośniej niż echo przez 3 ramki → kandydat
+    assert [gate.update(0.2, 0.9, 0.1, 0.002) for _ in range(3)] == [False, False, True]
+
+
+def test_echo_gate_needs_learning_before_voice_trigger():
+    gate = EchoGate()
+    assert not any(gate.update(0.5, 0.99, 0.1, 0.002) for _ in range(5))  # głośno, ale jeszcze nie znamy echa
+
+
+def test_echo_gate_defaults_and_penalty():
+    gate = EchoGate()
+    assert gate.coupling == DEFAULT_COUPLING
+    gate.outputs.append(0.1)
+    before = gate.threshold(0.0)
+    gate.penalize()
+    assert gate.threshold(0.0) > before
+
+
+@pytest.mark.parametrize("mic, verdict", [(0.2, "user"), (0.04, "echo"), (0.09, "uncertain")])
+def test_classify_duck(mic, verdict):
+    assert classify_duck(mic, expected_echo=0.03, noise_floor=0.001) == verdict
+
+
+def test_duck_test_waits_for_ramp_and_echo_delay():
+    test = DuckTest(coupling=0.3, noise_floor=0.001)
+    assert [test.add(0.5, 0.015) for _ in range(3)] == [None, None, None]  # pełne echo sprzed ściszenia
+    assert test.add(0.004, 0.015) is None
+    assert test.add(0.005, 0.015) == "echo"
+
+
+def test_recorder_waits_for_speech_after_wake_word():
+    rec = UtteranceRecorder()
+    for _ in range(10):  # pauza po „Hej Jarvis”
+        assert not rec.add(FRAME, 0.05)
+    for _ in range(10):
+        rec.add(FRAME, 0.9)
+    assert rec.speech_started
+    done_after = [rec.add(FRAME, 0.05) for _ in range(12)]
+    assert done_after.index(True) == 11  # 12 × 80 ms ≥ 0,9 s ciszy
+    assert rec.has_speech
+
+
+def test_recorder_times_out_without_speech():
+    rec = UtteranceRecorder(start_timeout=0.8)
+    assert [rec.add(FRAME, 0.0) for _ in range(10)][-1]
+    assert not rec.has_speech
+
+
+def test_recorder_keeps_preroll_and_limits_length():
+    rec = UtteranceRecorder(preroll=[FRAME, FRAME], max_seconds=0.4, speech_started=True)
+    while not rec.add(FRAME, 0.9):
+        pass
+    assert rec.audio().size == 1280 * (2 + 5)
+
+
+def test_split_sentences_merges_short_ones():
+    text = "Jasne. Dodałem wydarzenie do kalendarza na piątek. Coś jeszcze?"
+    assert split_sentences(text) == ["Jasne. Dodałem wydarzenie do kalendarza na piątek.", "Coś jeszcze?"]
+    assert split_sentences("") == []
+
+
+def test_locate_words_maps_to_text_positions():
+    text = "Cześć, jestem Jarvis."
+    marks = locate_words(text, [("Cześć", 0.1), ("jestem", 0.9), ("Jarvis", 1.3)])
+    assert [m.char_end for m in marks] == [5, 13, 20]
+    assert text[: marks[1].char_end] == "Cześć, jestem"
+
+
+def test_vocabulary_prompt_includes_contacts_and_is_bounded():
+    s = Settings.from_dict({
+        "contacts": [{"name": "PIOTREK", "channel_id": "1234567", "aliases": ["Piotr"]}],
+        "voice": {"vocabulary": ["Wałbrzych"] + [f"słowo{i}" for i in range(200)]},
+    })
+    prompt = vocabulary_prompt(s)
+    assert prompt.startswith("Hej Jarvis, Piotrek, Piotr, Wałbrzych")
+    assert len(prompt) <= 601
+
+
+def test_signal_helpers():
+    tone = (np.sin(np.linspace(0, 200, 48000)) * 16000).astype(np.int16)
+    assert rms(tone) == pytest.approx(16000 / 32768 / np.sqrt(2), rel=0.02)
+    assert resample(tone, 48000, 16000).size == 16000
+    assert ui_level(0.0, 0.1) == 0.0 and ui_level(1.0, 0.1) == 1.0
+    assert to_wav(FRAME)[:4] == b"RIFF"
