@@ -185,9 +185,11 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
     def tts_preview(body: dict[str, Any] = Body(...)) -> Response | JSONResponse:
         if not jarvis.voice:
             return _error(409, "Dźwięk jest wyłączony (--no-voice).")
-        voice = str(body.get("voice") or jarvis.settings.get().voice.tts_voice)
-        rate = int(body.get("rate") or 0)
-        jarvis.voice.preview(voice, rate, body.get("text"))
+        cfg = jarvis.settings.get().voice
+        voice = str(body.get("voice") or cfg.tts_voice)
+        rate = int(body.get("rate", cfg.tts_rate) or 0)
+        pitch = int(body.get("pitch", cfg.tts_pitch) or 0)
+        jarvis.voice.preview(voice, rate, pitch, body.get("text"))
         return Response(status_code=204)
 
     @api.get("/api/audio/devices")

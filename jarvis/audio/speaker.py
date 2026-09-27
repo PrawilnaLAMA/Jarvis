@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from jarvis.audio.player import Player
+from jarvis.audio.speakable import speakable
 from jarvis.audio.tts import EdgeTTS, Speech, TTSError, split_for_speech, trim_silence
 from jarvis.events import EventBus
 from jarvis.settings import SettingsStore
@@ -15,6 +16,18 @@ from jarvis.state import StatusTracker
 log = logging.getLogger(__name__)
 
 SYNTHESIS_WORKERS = 3
+
+
+def _pause_after(chunk: str, last: bool) -> float:
+    """Pauza zostawiana po fragmencie – jak w naturalnej mowie: dłuższa po zdaniu, krótsza po przecinku,
+    prawie żadna, gdy fragment urwano w środku frazy."""
+    if last:
+        return 0.5
+    if chunk[-1] in ".!?…":
+        return 0.35
+    if chunk[-1] in ",;:–—":
+        return 0.18
+    return 0.05
 
 
 @dataclass(frozen=True)
@@ -54,19 +67,27 @@ class Speaker:
     def stop(self) -> None:
         self._player.stop()
 
-    def say(self, text: str, kind: str = "reply", voice: str | None = None, rate: int | None = None) -> SpeechResult:
-        text = text.strip()
+    def say(
+        self,
+        text: str,
+        kind: str = "reply",
+        voice: str | None = None,
+        rate: int | None = None,
+        pitch: int | None = None,
+    ) -> SpeechResult:
+        text = speakable(text.strip())
         if not text:
             return SpeechResult(text, kind, False, "")
         with self._lock:
             cfg = self._settings.get().voice
             voice = voice or cfg.tts_voice
             rate = cfg.tts_rate if rate is None else rate
+            pitch = cfg.tts_pitch if pitch is None else pitch
             self.current_text, self.current_kind = text, kind
             self._tracker.set_speaking(True)
             self._bus.publish("tts.start", text=text)
             try:
-                playback = self._player.play(self._segments(text, voice, rate), text)
+                playback = self._player.play(self._segments(text, voice, rate, pitch), text)
             finally:
                 self._tracker.set_speaking(False)
             result = SpeechResult(text, kind, playback.interrupted, playback.spoken)
@@ -78,18 +99,17 @@ class Speaker:
     def say_async(self, text: str, kind: str = "notice", **kwargs) -> None:
         threading.Thread(target=self.say, args=(text, kind), kwargs=kwargs, daemon=True).start()
 
-    def _segments(self, text: str, voice: str, rate: int) -> Iterator[Speech]:
+    def _segments(self, text: str, voice: str, rate: int, pitch: int) -> Iterator[Speech]:
         """Fragmenty generowane równolegle (usługa potrzebuje ~1,3 s+ na każdy), oddawane po kolei."""
         chunks = split_for_speech(text)
         with ThreadPoolExecutor(max_workers=SYNTHESIS_WORKERS, thread_name_prefix="tts") as pool:
-            futures = [pool.submit(self._tts.synthesize, chunk, voice=voice, rate=rate) for chunk in chunks]
+            futures = [
+                pool.submit(self._tts.synthesize, chunk, voice=voice, rate=rate, pitch=pitch) for chunk in chunks
+            ]
             try:
                 for i, future in enumerate(futures):
                     speech = future.result()
-                    last = i == len(futures) - 1
-                    # krótka pauza po przecinku, dłuższa po kropce – jak w naturalnej mowie
-                    tail = 0.5 if last else 0.28 if chunks[i][-1] in ".!?…" else 0.12
-                    yield trim_silence(speech, tail=tail)
+                    yield trim_silence(speech, tail=_pause_after(chunks[i], last=i == len(futures) - 1))
             except TTSError as e:
                 self._bus.notice(str(e), "error")
             finally:

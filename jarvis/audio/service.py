@@ -154,6 +154,8 @@ class VoiceService:
     def say(self, text: str, kind: str = "notice") -> None:
         self.speaker.say_async(text, kind)
 
-    def preview(self, voice: str, rate: int, text: str | None = None) -> None:
-        sample = text or "Cześć, jestem Jarvis. Tak będę brzmiał."
-        self.speaker.say_async(sample, "notice", voice=voice, rate=rate)
+    def preview(self, voice: str, rate: int, pitch: int = 0, text: str | None = None) -> None:
+        # przerywamy poprzednią próbkę, żeby przy szybkim przełączaniu głosów było słychać od razu nowy
+        self.speaker.stop()
+        sample = text or "Cześć, tu Jarvis. Tak teraz brzmię – daj znać, czy ci się podoba."
+        self.speaker.say_async(sample, "notice", voice=voice, rate=rate, pitch=pitch)

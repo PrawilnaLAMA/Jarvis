@@ -98,6 +98,6 @@ export const api = {
 
   llmModels: () => request('GET', 'api/llm/models'),
   ttsVoices: () => request('GET', 'api/tts/voices'),
-  ttsPreview: (voice, rate) => request('POST', 'api/tts/preview', { voice, rate }),
+  ttsPreview: (voice, rate, pitch) => request('POST', 'api/tts/preview', { voice, rate, pitch }),
   audioDevices: () => request('GET', 'api/audio/devices'),
 };

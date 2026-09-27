@@ -45,6 +45,8 @@ _PHRASE_BREAK = re.compile(r"(?<=[.!?…,;:–—])\s+")
 FIRST_CHUNK_CHARS = 45
 MIN_CHUNK_CHARS = 40
 MAX_CHUNK_CHARS = 140
+MAX_PHRASE_CHARS = 200
+WORD_CUT_CHUNKS = 2  # tylko w tylu pierwszych fragmentach wolno ciąć frazę w środku (szybki start)
 # kolejny fragment może być ~5× dłuższy od poprzedniego – tyle zdąży się wygenerować, zanim poprzedni wybrzmi
 GROWTH = 5
 
@@ -73,6 +75,9 @@ def split_for_speech(text: str) -> list[str]:
             continue
         if current:
             phrases.insert(0, phrase)
+        elif len(chunks) >= WORD_CUT_CHUNKS and len(phrase) <= MAX_PHRASE_CHARS:
+            # dalej od początku ważniejsza jest intonacja niż czas – nie tniemy w środku frazy
+            current = phrase
         else:
             # sama fraza jest za długa – tniemy na granicy słowa
             current, rest = _cut_at_word(phrase, limit)
@@ -144,25 +149,25 @@ class EdgeTTS:
     def __init__(self, voice: str = DEFAULT_VOICE, rate: int = 0):
         self.voice = voice
         self.rate = rate
-        self._cache: OrderedDict[tuple[str, str, int], Speech] = OrderedDict()
+        self._cache: OrderedDict[tuple[str, str, int, int], Speech] = OrderedDict()
         self._cache_lock = threading.Lock()
 
-    def synthesize(self, text: str, voice: str | None = None, rate: int | None = None) -> Speech:
+    def synthesize(self, text: str, voice: str | None = None, rate: int | None = None, pitch: int = 0) -> Speech:
         voice = voice or self.voice
         rate = self.rate if rate is None else rate
-        key = (text, voice, rate)
+        key = (text, voice, rate, pitch)
         with self._cache_lock:
             if key in self._cache:
                 self._cache.move_to_end(key)
                 return self._cache[key]
-        speech = self._synthesize(text, voice, rate)
+        speech = self._synthesize(text, voice, rate, pitch)
         with self._cache_lock:
             self._cache[key] = speech
             while len(self._cache) > self.CACHE_SIZE:
                 self._cache.popitem(last=False)
         return speech
 
-    def _synthesize(self, text: str, voice: str, rate: int) -> Speech:
+    def _synthesize(self, text: str, voice: str, rate: int, pitch: int) -> Speech:
         import edge_tts
 
         audio = bytearray()
@@ -170,7 +175,9 @@ class EdgeTTS:
         started = time.monotonic()
         first_chunk = None
         try:
-            communicate = edge_tts.Communicate(text, voice, rate=f"{rate:+d}%", boundary="WordBoundary")
+            communicate = edge_tts.Communicate(
+                text, voice, rate=f"{rate:+d}%", pitch=f"{pitch:+d}Hz", boundary="WordBoundary"
+            )
             for chunk in communicate.stream_sync():
                 if chunk["type"] == "audio":
                     if first_chunk is None:

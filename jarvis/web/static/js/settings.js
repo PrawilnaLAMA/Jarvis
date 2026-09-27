@@ -47,6 +47,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const inputDevice = remoteSelectField({ label: 'Mikrofon', emptyLabel: 'Domyślne', placeholder: 'puste = urządzenie domyślne' });
   const outputDevice = remoteSelectField({ label: 'Głośnik', emptyLabel: 'Domyślne', placeholder: 'puste = urządzenie domyślne' });
   const rate = rangeField({ label: 'Tempo mowy', min: -50, max: 100, step: 1, format: (v) => `${v > 0 ? '+' : ''}${v}%` });
+  const pitch = rangeField({ label: 'Wysokość głosu', min: -30, max: 30, step: 1, format: (v) => `${v > 0 ? '+' : ''}${v} Hz` });
   const volume = rangeField({ label: 'Głośność', min: 0, max: 1.5, step: 0.01, format: (v) => `${Math.round(v * 100)}%` });
   const threshold = rangeField({
     label: 'Próg słowa wywołania',
@@ -59,20 +60,39 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const previewBtn = h('button', { type: 'button', class: 'btn' }, icon('play'), 'Odsłuchaj');
   previewBtn.addEventListener('click', preview);
 
-  function fields(cardId, section) {
+  function fields(cardId, section, live = false) {
     return (key, control) => {
-      controls.push({ card: cardId, section, key, control, baseline: null });
+      controls.push({ card: cardId, section, key, control, baseline: null, live });
       return control.el;
     };
   }
   const llmF = fields('llm', 'llm');
   const outF = fields('voice-out', 'voice');
+  // głos, tempo, wysokość i głośność działają na żywo: zapis od razu po zmianie + próbka
+  const liveF = fields('voice-out', 'voice', true);
+  const liveControls = [ttsVoice, rate, pitch, volume];
+  let liveTimer = 0;
+  for (const control of liveControls) {
+    control.el.addEventListener('change', () => {
+      clearTimeout(liveTimer);
+      liveTimer = setTimeout(saveLive, 250);
+    });
+  }
   const inF = fields('voice-in', 'voice');
   const remF = fields('reminders', 'reminders');
   const discF = fields('discord', 'discord');
   const uiF = fields('ui', 'ui');
 
   const layout = [
+    card(
+      'voice-out', 'Głos', { section: 'voice', wide: true, desc: 'Zmiany działają od razu – po każdej usłyszysz próbkę. Głosy „wielojęzyczne” też mówią po polsku.' },
+      liveF('tts_voice', ttsVoice),
+      liveF('tts_rate', rate),
+      liveF('tts_pitch', pitch),
+      liveF('volume', volume),
+      h('div', { class: 'field field-inline' }, previewBtn, previewMsg),
+      outF('speak_text_replies', toggleField({ label: 'Czytaj na głos odpowiedzi na komendy wpisane' })),
+    ),
     card(
       'contacts', 'Kontakty',
       { section: 'contacts', wide: true, desc: 'Osoby, do których Jarvis może pisać na Discordzie. Nazwy zapisywane są wielkimi literami, aliasy to inne formy imienia.' },
@@ -84,14 +104,6 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       llmF('model', model),
       llmF('fallback_model', textField({ label: 'Model zapasowy (Cerebras)', hint: 'Używany, gdy Groq nie odpowiada.', placeholder: 'np. gpt-oss-120b' })),
       llmF('history_messages', numberField({ label: 'Pamięć rozmowy', hint: 'Ile ostatnich wiadomości rozmowy wysyłać do modelu (0–100).', min: 0, max: 100, integer: true, unit: 'wiad.' })),
-    ),
-    card(
-      'voice-out', 'Głos', { section: 'voice' },
-      outF('tts_voice', ttsVoice),
-      outF('tts_rate', rate),
-      outF('volume', volume),
-      h('div', { class: 'field field-inline' }, previewBtn, previewMsg),
-      outF('speak_text_replies', toggleField({ label: 'Czytaj na głos odpowiedzi na komendy wpisane' })),
     ),
     card(
       'voice-in', 'Rozpoznawanie mowy', { section: 'voice' },
@@ -335,7 +347,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     const ids = new Set();
     if (!loaded) return ids;
     for (const c of controls) {
-      if (JSON.stringify(c.control.get()) !== c.baseline) ids.add(c.card);
+      if (!c.live && JSON.stringify(c.control.get()) !== c.baseline) ids.add(c.card);
     }
     if (secretControls.some((s) => s.get())) ids.add('secrets');
     return ids;
@@ -460,12 +472,34 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     refreshDirty();
   }
 
+  /** Zapis ustawień głosu od razu po zmianie (bez paska „Zapisz”) i odtworzenie próbki. */
+  async function saveLive() {
+    if (!loaded) return;
+    const live = controls.filter((c) => c.live);
+    const patch = {};
+    for (const c of live) patch[c.key] = c.control.get();
+    clearTimeout(previewTimer);
+    setInline('Zapisuję…', '');
+    ignoreChangesUntil = Date.now() + 2000;
+    try {
+      const res = await api.saveSettings({ voice: patch });
+      const saved = (res && res.settings && res.settings.voice) || patch;
+      original = { ...original, voice: { ...((original && original.voice) || {}), ...patch, ...pick(saved, Object.keys(patch)) } };
+      for (const c of live) c.baseline = JSON.stringify(c.control.get());
+    } catch (err) {
+      setInline(`Nie zapisano: ${err.errors && err.errors.length ? err.errors.join(' ') : err.message}`, 'error');
+      previewTimer = setTimeout(() => setInline('', ''), 6000);
+      return;
+    }
+    await preview();
+  }
+
   async function preview() {
     clearTimeout(previewTimer);
     previewBtn.disabled = true;
     setInline('Odtwarzam próbkę…', '');
     try {
-      await api.ttsPreview(ttsVoice.get(), rate.get());
+      await api.ttsPreview(ttsVoice.get(), rate.get(), pitch.get());
       previewTimer = setTimeout(() => setInline('', ''), 3000);
     } catch (err) {
       setInline(`Nie udało się odtworzyć próbki: ${err.message}`, 'error');
@@ -510,6 +544,12 @@ function failure(title, err) {
 
 function pill(kind, text, detail) {
   return h('li', { class: `pill is-${kind}`, title: detail ? String(detail) : null }, h('span', { class: 'pill-dot', 'aria-hidden': 'true' }), text, detail ? h('span', { class: 'sr-only' }, `: ${detail}`) : null);
+}
+
+function pick(obj, keys) {
+  const out = {};
+  for (const k of keys) if (obj && k in obj) out[k] = obj[k];
+  return out;
 }
 
 function voiceOption(v) {

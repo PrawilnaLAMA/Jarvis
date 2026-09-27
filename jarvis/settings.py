@@ -54,6 +54,7 @@ class VoiceSettings:
     vocabulary: list[str] = field(default_factory=list)  # dodatkowe słowa dla Whispera
     tts_voice: str = "en-US-AndrewMultilingualNeural"  # wielojęzyczny, mówi po polsku; alternatywy w UI
     tts_rate: int = 0  # procent, np. 10 = szybciej o 10%
+    tts_pitch: int = 0  # Hz, np. -5 = trochę niżej
     volume: float = 1.0
     speak_text_replies: bool = True  # czy czytać na głos odpowiedzi na komendy wpisane w UI
 
@@ -169,6 +170,8 @@ def validate(settings: Settings) -> list[str]:
         errors.append("Czas nasłuchu po odpowiedzi musi być między 0 a 30 s.")
     if not -50 <= v.tts_rate <= 100:
         errors.append("Tempo mowy musi być między -50% a +100%.")
+    if not -30 <= v.tts_pitch <= 30:
+        errors.append("Wysokość głosu musi być między -30 a +30 Hz.")
     if not 0 <= v.volume <= 1.5:
         errors.append("Głośność musi być między 0 a 1,5.")
     r = settings.reminders
