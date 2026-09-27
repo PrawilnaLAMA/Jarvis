@@ -8,6 +8,7 @@ from jarvis.conversation import Conversation
 from jarvis.llm import LLMError
 from jarvis.services.discord_client import DiscordError
 from jarvis.services.domownik_client import DomownikError
+from jarvis.services.inbox import IncomingMessage
 from jarvis.settings import Settings, SettingsStore
 from jarvis.tools import ToolContext, build_tools
 
@@ -45,7 +46,7 @@ class FakeDiscord:
 
 
 @pytest.fixture
-def env(tmp_path, bus, domownik):
+def env(tmp_path, bus, domownik, messenger, inbox):
     settings = SettingsStore(tmp_path / "settings.json")
     settings.update({"contacts": [
         {"name": "PIOTREK", "channel_id": "111111", "aliases": ["Piotr"]},
@@ -57,6 +58,8 @@ def env(tmp_path, bus, domownik):
         bus=bus,
         domownik=domownik,
         discord=FakeDiscord(),
+        messenger=messenger,
+        inbox=inbox,
         conversation=conversation,
         open_url=lambda url: opened.append(url),
         http_get=lambda url: '..."videoId":"dQw4w9WgXcQ"...',
@@ -94,12 +97,43 @@ def test_direct_tool_needs_single_llm_call(env):
 def test_discord_message_to_many_with_partial_failure(env):
     make, ctx, _, _ = env
     ctx.discord.fail_for = ("222222",)
-    assistant, _ = make({"tool_calls": [call("send_discord_message", {"recipients": ["PIOTREK", "NATAN", "ANNA"],
+    assistant, _ = make({"tool_calls": [call("send_message", {"recipients": ["PIOTREK", "NATAN", "ANNA"],
                                                                         "message": "Spóźnię się."})]})
     reply = assistant.handle("napisz do piotrka, natana i anny, że się spóźnię")
     assert ctx.discord.sent == [("111111", "Spóźnię się.")]
     assert reply.startswith("Wysłałem do: Piotrek: „Spóźnię się.”.")
     assert "Natan (brak dostępu)" in reply and "ANNA (nie ma takiego kontaktu)" in reply
+
+
+def test_message_app_follows_last_incoming_message(env, spoken, recorder):
+    make, ctx, _, _ = env
+    contacts = [c.__dict__ for c in ctx.settings.get().contacts]
+    ctx.settings.update({"contacts": [*contacts, {"name": "NATALIA", "channel_id": "333333",
+                                                  "messenger": "https://www.messenger.com/e2ee/t/123456789/"}]})
+    natalia = ctx.settings.get().contact_by_name("natalia")
+    assistant, llm = make(
+        {"tool_calls": [call("send_message", {"recipients": ["NATALIA"], "message": "Będę za 10 minut."})]},
+        {"tool_calls": [call("send_message", {"recipients": ["NATALIA"], "message": "OK."})]},
+        {"tool_calls": [call("send_message", {"recipients": ["PIOTREK"], "message": "Hej.", "app": "messenger"})]},
+    )
+    # bez wskazania komunikatora i bez rozmowy – pierwszy z kontaktu (Discord)
+    assert assistant.handle("napisz natalii, że będę za 10 minut") == (
+        "Wysłałem do: Natalia na Discordzie: „Będę za 10 minut.”."
+    )
+    assert ctx.discord.sent == [("333333", "Będę za 10 minut.")]
+
+    ctx.inbox.receive("messenger", natalia, "Kupisz mleko?", read_aloud=True)
+    assert spoken == ["Natalia pisze na Messengerze: Kupisz mleko?"]
+    assert recorder.of("messenger.message") == [{"author": "Natalia", "content": "Kupisz mleko?", "contact": "NATALIA"}]
+    assert assistant.handle("odpisz jej, że ok") == "Wysłałem do: Natalia na Messengerze: „OK.”."
+    assert ctx.messenger.sent == [("e2ee/t/123456789", "OK.")]
+    assert "od NATALIA (Messenger" in llm.requests[1]["messages"][-1]["content"]
+    send_tool = next(t["function"] for t in llm.requests[1]["tools"] if t["function"]["name"] == "send_message")
+    assert send_tool["parameters"]["properties"]["app"]["enum"] == ["discord", "messenger"]
+
+    assert assistant.handle("napisz piotrkowi na messengerze hej") == (
+        "Nie udało się wysłać do: Piotrek (brak Messengera w kontakcie)."
+    )
 
 
 def test_informational_tool_gets_second_round(env):
@@ -180,7 +214,9 @@ def test_unknown_tool_and_bad_json_do_not_crash(env):
 
 
 def test_context_has_dates_and_interruption():
-    context = build_context(NOW, "text", Interruption("Rzym został założony"))
+    incoming = IncomingMessage("discord", "PIOTREK", "Piotrek", "gramy?", NOW.timestamp() - 180)
+    context = build_context(NOW, "text", Interruption("Rzym został założony"), incoming)
+    assert "Ostatnia wiadomość do użytkownika: od PIOTREK (Discord, 3 min temu): „gramy?”." in context
     assert "Rzym został założony" in context
     assert "Teraz: poniedziałek 2025-11-03, godz. 12:00" in context
     assert "wtorek 2025-11-04 (jutro)" in context and "piątek 2025-11-07" in context
@@ -201,7 +237,7 @@ def test_system_prompt_is_static_and_context_goes_to_user_message(env):
 
 def test_tools_without_contacts_hide_discord():
     names = {t.name for t in build_tools(Settings())}
-    assert "send_discord_message" not in names
+    assert "send_message" not in names
     assert {"play_youtube", "house_agenda", "chore_add", "shopping_update", "stay_silent"} <= names
 
 

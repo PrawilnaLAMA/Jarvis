@@ -9,8 +9,9 @@ Działa na Windows i Raspberry Pi 4/5 (64-bit) z ekranem.
 ## Co potrafi
 
 - **Rozmowa** – odpowiada na pytania, pamięta kontekst kilku ostatnich wymian.
-- **Discord** – „napisz do Piotrka i Natana, że spóźnię się 10 minut” (wiadomość wysyła z Twojego konta);
-  czyta na głos nowe wiadomości od kontaktów.
+- **Discord i Messenger** – „napisz do Piotrka i Natana, że spóźnię się 10 minut”, „napisz Natalii na
+  Messengerze, że kupię mleko” (wiadomość wychodzi z Twojego konta); czyta na głos nowe wiadomości od
+  kontaktów, a „odpisz jej, że OK” trafia do osoby, która napisała ostatnia, tym samym komunikatorem.
 - **Kalendarz (Domownik)** – obowiązki domowe, lista zakupów i grafik pracy Natalii z aplikacji
   Domownik (repozytorium HouseholdChoresApp): „co mam dziś do zrobienia?”, „zrobiłem pranie”, „dodaj trening w każdą
   środę o 18”, „dodaj do zakupów mleko i chleb”, „kupiłem mleko”, „czy Natalia jutro pracuje?”,
@@ -53,8 +54,23 @@ Klucze API trzymane są w pliku `.env` (wzór: `.env.example`), ale najprościej
 | `CEREBRAS_API_KEY` | opcjonalny zapasowy model, używany, gdy Groq zwróci limit zapytań |
 | `DISCORD_USER_TOKEN` | wysyłanie i czytanie wiadomości na Discordzie |
 
-Kontakty z Discorda (nazwa, ID kanału, inne formy imienia) ustawia się w **Ustawienia → Kontakty**.
-Stare wpisy `CHANNEL_<NAZWA>=<id>` z `.env` są importowane automatycznie przy pierwszym starcie.
+Kontakty (nazwa, ID kanału Discorda i/lub link do czatu Messengera, inne formy imienia) ustawia się
+w **Ustawienia → Kontakty**. Stare wpisy `CHANNEL_<NAZWA>=<id>` z `.env` są importowane automatycznie
+przy pierwszym starcie.
+
+### Messenger
+
+Messenger nie ma API dla prywatnych kont, a prywatne czaty są szyfrowane end-to-end, więc Jarvis
+korzysta z messenger.com w osobnym oknie Chrome (bez Chrome'a – Edge albo Chromium) z własnym
+profilem w `data/messenger`. Włącz go w **Ustawienia → Messenger**, zaloguj się w oknie, które się
+otworzy, a potem możesz je schować. Link do czatu kontaktu skopiuj z paska adresu messenger.com
+(np. `https://www.messenger.com/e2ee/t/123…`) albo wybierz z podpowiedzi w polu kontaktu.
+
+- Nowe wiadomości Jarvis czyta z listy czatów, bez otwierania rozmowy, więc u nadawcy nie pojawia
+  się „wyświetlono”. Ogłasza tylko świeże wiadomości (do 5 minut).
+- Na nowym urządzeniu Messenger nie pokazuje starej historii zaszyfrowanych czatów („Wiadomości
+  i rozmowy są chronione…”). Nowe wiadomości przychodzą normalnie.
+- To automatyzacja konta niezgodna z regulaminem Meta – ryzyko blokady konta jest małe, ale istnieje.
 
 Pozostałe ustawienia (głos, tempo mowy, czułość „Hey Jarvis”, tryb przerywania, urządzenia audio,
 adres Domownika) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.

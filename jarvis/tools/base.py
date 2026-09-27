@@ -13,6 +13,8 @@ from jarvis.conversation import Conversation
 from jarvis.events import EventBus
 from jarvis.services.discord_client import DiscordClient
 from jarvis.services.domownik_client import DomownikClient
+from jarvis.services.inbox import Inbox
+from jarvis.services.messenger import MessengerService
 from jarvis.settings import SettingsStore
 
 
@@ -38,6 +40,8 @@ class ToolContext:
     bus: EventBus
     domownik: DomownikClient  # kalendarz: obowiązki domowe, zakupy, grafik pracy
     discord: DiscordClient
+    messenger: MessengerService
+    inbox: Inbox  # ostatnia wiadomość przychodząca – do „odpisz jej”
     conversation: Conversation
     open_url: Callable[[str], Any] = webbrowser.open
     http_get: Callable[[str], str] = _http_get

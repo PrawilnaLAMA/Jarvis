@@ -5,7 +5,7 @@ import { formatClock, formatLongDate, toISODate, addDays } from './dates.js';
 import { capitalize } from './i18n.js';
 import { assistantState } from './store.js';
 
-const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'notice'];
+const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'messenger.message', 'notice'];
 const MAX_ITEMS = 300;
 const MAX_DETAILS = 1500;
 const NOTICE_ICONS = { info: 'info', warning: 'warning', error: 'error' };
@@ -243,18 +243,11 @@ const RENDERERS = {
   },
 
   'discord.message'(data, ts) {
-    return h(
-      'li',
-      { class: 'entry entry-discord' },
-      h(
-        'div',
-        { class: 'entry-head' },
-        icon('message'),
-        h('span', { class: 'entry-label' }, 'Discord · ', h('strong', null, str(data.author) || 'nieznany')),
-        timeEl(ts),
-      ),
-      h('p', { class: 'entry-text' }, str(data.content)),
-    );
+    return incoming('discord', 'Discord', data, ts);
+  },
+
+  'messenger.message'(data, ts) {
+    return incoming('messenger', 'Messenger', data, ts);
   },
 
   notice(data, ts) {
@@ -266,6 +259,22 @@ const RENDERERS = {
     );
   },
 };
+
+/** Wiadomość od kontaktu z komunikatora (Discord, Messenger). */
+function incoming(app, label, data, ts) {
+  return h(
+    'li',
+    { class: `entry entry-${app}` },
+    h(
+      'div',
+      { class: 'entry-head' },
+      icon('message'),
+      h('span', { class: 'entry-label' }, `${label} · `, h('strong', null, str(data.author) || 'nieznany')),
+      timeEl(ts),
+    ),
+    h('p', { class: 'entry-text' }, str(data.content) || 'załącznik'),
+  );
+}
 
 function str(value) {
   return value == null ? '' : String(value);

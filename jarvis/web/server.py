@@ -23,11 +23,12 @@ from jarvis.app import JarvisApp
 from jarvis.events import Event, EventBus
 from jarvis.llm import LLMError
 from jarvis.services.domownik_client import DomownikError
+from jarvis.services.messenger import MessengerError
 from jarvis.settings import SECRET_KEYS, SettingsError
 
 log = logging.getLogger(__name__)
 
-HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "notice"}
+HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "messenger.message", "notice"}
 MAX_QUEUE = 500
 
 # Windows potrafi mieć w rejestrze .js jako text/plain – przeglądarka odrzuciłaby wtedy moduły ES
@@ -105,6 +106,29 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
         except DomownikError as e:
             return {"url": jarvis.domownik.url, "ok": False, "error": str(e)}
         return {"url": jarvis.domownik.url, "ok": True, "error": None}
+
+    # --- Messenger (przeglądarka w tle) ---
+
+    @api.get("/api/messenger/status")
+    def messenger_status() -> dict[str, Any]:
+        return jarvis.messenger.status()
+
+    @api.post("/api/messenger/window", response_model=None)
+    def messenger_window(body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
+        """Pokazuje okno Messengera (logowanie, PIN do zaszyfrowanych czatów) albo je minimalizuje."""
+        try:
+            jarvis.messenger.set_window(bool(body.get("visible")))
+        except MessengerError as e:
+            return _error(409, str(e))
+        return jarvis.messenger.status()
+
+    @api.get("/api/messenger/threads", response_model=None)
+    def messenger_threads() -> dict[str, Any] | JSONResponse:
+        """Ostatnie rozmowy z listy czatów – do wyboru przy dodawaniu kontaktu."""
+        try:
+            return {"threads": jarvis.messenger.recent_threads()}
+        except MessengerError as e:
+            return _error(409, str(e))
 
     # --- ustawienia ---
 

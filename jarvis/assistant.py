@@ -13,6 +13,7 @@ from jarvis.conversation import Conversation
 from jarvis.events import EventBus
 from jarvis.llm import LLMClient, LLMError
 from jarvis.polish import MONTHS_GENITIVE_PL, WEEKDAYS_PL
+from jarvis.services.inbox import APP_NAMES, IncomingMessage
 from jarvis.settings import Settings, SettingsStore
 from jarvis.tools import Tool, ToolContext, ToolError, build_tools
 
@@ -54,7 +55,13 @@ def build_system_prompt(settings: Settings) -> str:
     return "\n".join(lines)
 
 
-def build_context(now: datetime, source: str, interruption: Interruption | None, days_ahead: int = 14) -> str:
+def build_context(
+    now: datetime,
+    source: str,
+    interruption: Interruption | None,
+    incoming: IncomingMessage | None = None,
+    days_ahead: int = 14,
+) -> str:
     """Zmienna część promptu dołączana do bieżącej wiadomości użytkownika."""
     upcoming = []
     for i in range(1, days_ahead + 1):
@@ -72,6 +79,13 @@ def build_context(now: datetime, source: str, interruption: Interruption | None,
         lines.append(
             f"Użytkownik przerwał twoją poprzednią wypowiedź – zdążyłeś powiedzieć tylko: „{interruption.spoken}”. "
             "Nie powtarzaj jej, odnieś się do tego, co mówi teraz."
+        )
+    if incoming:
+        minutes = max(0, round((now.timestamp() - incoming.received_at) / 60))
+        content = incoming.content[:300] or "(załącznik)"
+        lines.append(
+            f"Ostatnia wiadomość do użytkownika: od {incoming.contact} ({APP_NAMES[incoming.app]}, "
+            f"{minutes} min temu): „{content}”. „Odpisz” dotyczy tej osoby."
         )
     return "<kontekst>\n" + "\n".join(lines) + "\n</kontekst>"
 
@@ -134,7 +148,7 @@ class Assistant:
         settings = self._settings.get()
         tools = build_tools(settings)
         by_name = {t.name: t for t in tools}
-        context = build_context(self._clock(), source, interruption)
+        context = build_context(self._clock(), source, interruption, self._ctx.inbox.last())
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": build_system_prompt(settings)},
             *self._conversation.messages(),

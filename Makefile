@@ -23,7 +23,7 @@ lint:
 # openWakeWord instalujemy bez zależności: jego tflite-runtime nie jest potrzebny (używamy onnx),
 # a na nowszych wersjach Pythona nie ma dla niego paczek.
 pi-setup:
-	sudo apt-get install -y python3-venv python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 libportaudio2
+	sudo apt-get install -y python3-venv python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 libportaudio2 chromium
 	python3 -m venv --system-site-packages $(VENV)
 	$(VENV)/bin/pip install $$(grep -v '^openwakeword' requirements.txt)
 	$(VENV)/bin/pip install --no-deps openwakeword

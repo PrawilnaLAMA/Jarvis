@@ -3,7 +3,7 @@ import json
 import pytest
 
 from jarvis.migration import migrate_legacy_data
-from jarvis.settings import Secrets, Settings, SettingsError, SettingsStore
+from jarvis.settings import Secrets, Settings, SettingsError, SettingsStore, messenger_thread
 
 
 def test_first_run_imports_contacts_from_env(tmp_path, monkeypatch):
@@ -44,6 +44,30 @@ def test_update_rejects_invalid(tmp_path):
         store.update({"contacts": [{"name": "A", "channel_id": "nie-liczba"}], "voice": {"barge_in": "x"}})
     assert len(exc.value.errors) == 2
     assert store.get().contacts == []
+
+
+@pytest.mark.parametrize(("ref", "thread"), [
+    ("https://www.messenger.com/e2ee/t/123456789/", "e2ee/t/123456789"),
+    ("messenger.com/t/123456789", "t/123456789"),
+    ("123456789", "t/123456789"),
+    (" e2ee/t/123456789 ", "e2ee/t/123456789"),
+    ("https://facebook.com/natalia", None),
+    ("Natalia", None),
+])
+def test_messenger_thread(ref, thread):
+    assert messenger_thread(ref) == thread
+
+
+def test_contact_needs_discord_or_messenger(tmp_path):
+    store = SettingsStore(tmp_path / "settings.json")
+    store.update({"contacts": [{"name": "NATALIA", "messenger": "123456789"}]})
+    assert store.get().contacts[0].apps == ["messenger"]
+    with pytest.raises(SettingsError) as exc:
+        store.update({"contacts": [{"name": "A"}, {"name": "B", "messenger": "facebook.com/b"}]})
+    assert exc.value.errors == [
+        "Kontakt A potrzebuje ID kanału Discorda albo linku do czatu Messengera.",
+        "Nieprawidłowy link do czatu Messengera dla kontaktu B.",
+    ]
 
 
 def test_contact_lookup_by_alias():

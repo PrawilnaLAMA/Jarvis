@@ -58,11 +58,11 @@ def test_client_errors_are_polish(session, client):
         DiscordClient(lambda: None, session=session).me()
 
 
-def test_monitor_announces_only_new_foreign_messages(tmp_path, bus, recorder, session, client):
+def test_monitor_announces_only_new_foreign_messages(tmp_path, bus, recorder, session, client, inbox, spoken):
     settings = SettingsStore(tmp_path / "s.json")
-    settings.update({"contacts": [{"name": "PIOTREK", "channel_id": "111111"}]})
-    spoken = []
-    monitor = DiscordMonitor(client, settings, bus, spoken.append)
+    settings.update({"contacts": [{"name": "PIOTREK", "channel_id": "111111"},
+                                  {"name": "NATALIA", "messenger": "123456789"}]})  # bez Discorda – pomijana
+    monitor = DiscordMonitor(client, settings, bus, inbox)
     session.channels["111111"] = [msg("1", "other", "stara wiadomość")]
     assert monitor.poll_once() == []  # pierwszy odczyt tylko zapamiętuje stan
 
@@ -78,3 +78,4 @@ def test_monitor_announces_only_new_foreign_messages(tmp_path, bus, recorder, se
     assert monitor.poll_once() == ["Piotrek przesyła załącznik."]
     assert spoken == ["Piotrek pisze: gramy?"]
     assert len(recorder.of("discord.message")) == 2
+    assert inbox.last().contact == "PIOTREK" and inbox.last_app_of("PIOTREK") == "discord"

@@ -16,6 +16,13 @@ const SECRETS = [
   { key: 'DISCORD_USER_TOKEN', label: 'Token Discorda', hint: 'do czytania i wysyłania wiadomości.' },
 ];
 const GENDERS = { Male: 'głos męski', Female: 'głos żeński' };
+const MESSENGER_STATES = {
+  off: 'Wyłączony.',
+  starting: 'Uruchamiam przeglądarkę…',
+  login: 'Czeka na zalogowanie – zaloguj się w oknie przeglądarki.',
+  ready: 'Połączony.',
+  error: 'Błąd',
+};
 const OK_VISIBLE_MS = 3500;
 
 export function initSettings({ socket, store, api, onDirtyChange }) {
@@ -66,6 +73,14 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     placeholder: 'http://127.0.0.1:8080',
   });
   const domownikMsg = h('span', { class: 'inline-msg', role: 'status' });
+
+  const messengerMsg = h('span', { class: 'inline-msg', role: 'status' });
+  const messengerShow = h('button', { type: 'button', class: 'btn' }, icon('eye'), 'Pokaż okno');
+  const messengerHide = h('button', { type: 'button', class: 'btn btn-ghost' }, icon('eye-off'), 'Schowaj okno');
+  messengerShow.addEventListener('click', () => messengerWindow(true));
+  messengerHide.addEventListener('click', () => messengerWindow(false));
+  let messengerKey = '';
+  let threadsLoaded = false;
   const domownikBtn = h('button', { type: 'button', class: 'btn' }, icon('refresh'), 'Sprawdź połączenie');
   domownikBtn.addEventListener('click', checkDomownik);
 
@@ -90,6 +105,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const inF = fields('voice-in', 'voice');
   const domF = fields('domownik', 'domownik');
   const discF = fields('discord', 'discord');
+  const msgF = fields('messenger', 'messenger');
   const uiF = fields('ui', 'ui');
 
   const layout = [
@@ -104,7 +120,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     ),
     card(
       'contacts', 'Kontakty',
-      { section: 'contacts', wide: true, desc: 'Osoby, do których Jarvis może pisać na Discordzie. Nazwy zapisywane są wielkimi literami, aliasy to inne formy imienia.' },
+      { section: 'contacts', wide: true, desc: 'Osoby, do których Jarvis może pisać na Discordzie i Messengerze (wystarczy jedno z nich). Link do czatu Messengera skopiuj z paska adresu na messenger.com. Nazwy zapisywane są wielkimi literami, aliasy to inne formy imienia.' },
       fields('contacts', 'contacts')(null, contacts),
     ),
     card('secrets', 'Klucze API', { desc: 'Zapisywane w pliku .env. Zostaw pole puste, aby nie zmieniać klucza.' }, secretControls.map((s) => s.el)),
@@ -148,6 +164,14 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       'discord', 'Discord', { section: 'discord' },
       discF('read_aloud', toggleField({ label: 'Czytaj wiadomości na głos' })),
       discF('poll_seconds', numberField({ label: 'Sprawdzanie nowych wiadomości co', hint: 'Od 1 do 300 sekund.', min: 1, max: 300, unit: 's' })),
+    ),
+    card(
+      'messenger', 'Messenger', { section: 'messenger', desc: 'Messenger nie ma API dla prywatnych kont, więc Jarvis korzysta z messenger.com w osobnym oknie przeglądarki Chrome (bez Chrome – Edge albo Chromium). Za pierwszym razem zaloguj się w tym oknie, potem możesz je schować.' },
+      msgF('enabled', toggleField({ label: 'Włącz Messengera' })),
+      h('div', { class: 'field field-inline' }, messengerShow, messengerHide, messengerMsg),
+      msgF('read_aloud', toggleField({ label: 'Czytaj wiadomości na głos' })),
+      msgF('poll_seconds', numberField({ label: 'Sprawdzanie nowych wiadomości co', hint: 'Od 1 do 300 sekund.', min: 1, max: 300, unit: 's' })),
+      msgF('browser', textField({ label: 'Przeglądarka (opcjonalnie)', hint: 'Ścieżka do pliku przeglądarki; puste = Chrome, a gdy go nie ma – Edge albo Chromium.', placeholder: 'automatycznie' })),
     ),
     card(
       'ui', 'Interfejs', { section: 'ui' },
@@ -201,12 +225,15 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
 
   store.subscribe(renderPills);
   renderPills(store.get());
+  store.subscribe(renderMessenger);
+  renderMessenger(store.get());
 
   return {
     onShow() {
       visible = true;
       if (!loaded) load();
       loadOptions();
+      loadMessengerThreads();
       meter.start();
       applyPendingFocus();
     },
@@ -523,6 +550,41 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     el.className = `inline-msg${kind ? ` is-${kind}` : ''}`;
   }
 
+  // --- Messenger ---
+
+  function renderMessenger(s) {
+    const m = (s.status && s.status.messenger) || { enabled: false, state: 'off', error: '' };
+    const key = JSON.stringify(m);
+    if (key === messengerKey) return;
+    messengerKey = key;
+    const active = m.state === 'login' || m.state === 'ready';
+    messengerShow.disabled = !active;
+    messengerHide.disabled = !active;
+    const text = m.state === 'error' ? `Błąd: ${m.error}` : m.enabled && m.state === 'off' ? MESSENGER_STATES.starting : MESSENGER_STATES[m.state] || m.state;
+    setInline(text, m.state === 'error' ? 'error' : m.state === 'ready' ? 'ok' : '', messengerMsg);
+    if (m.state === 'ready') loadMessengerThreads();
+  }
+
+  /** Podpowiedzi ostatnich rozmów w polu „Czat Messengera” kontaktów. */
+  function loadMessengerThreads() {
+    const st = store.get().status;
+    if (threadsLoaded || !visible || !st || !st.messenger || st.messenger.state !== 'ready') return;
+    threadsLoaded = true;
+    api.messengerThreads()
+      .then((res) => contacts.setMessengerThreads((res && res.threads) || []))
+      .catch(() => {
+        threadsLoaded = false;
+      });
+  }
+
+  async function messengerWindow(show) {
+    try {
+      await api.messengerWindow(show);
+    } catch (err) {
+      setInline(err.message, 'error', messengerMsg);
+    }
+  }
+
   /** Sprawdza zapisany adres – przy niezapisanej zmianie adresu najpierw prosi o zapis. */
   async function checkDomownik() {
     if (computeDirty().has('domownik')) {
@@ -547,7 +609,8 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   function renderPills(s) {
     const st = s.status;
     const voice = voiceInfo(s);
-    const key = JSON.stringify([s.connected, st && st.version, voice.available, voice.muted, voice.error, st && st.llm_configured, st && st.discord_configured]);
+    const messenger = (st && st.messenger) || {};
+    const key = JSON.stringify([s.connected, st && st.version, voice.available, voice.muted, voice.error, st && st.llm_configured, st && st.discord_configured, messenger.enabled, messenger.state]);
     if (key === pillsKey) return;
     pillsKey = key;
     const items = [];
@@ -558,6 +621,12 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       else items.push(pill('ok', 'Głos działa'));
       items.push(st.llm_configured ? pill('ok', 'Model językowy gotowy') : pill('bad', 'Brak klucza Groq'));
       items.push(st.discord_configured ? pill('ok', 'Discord skonfigurowany') : pill('warn', 'Discord nieskonfigurowany'));
+      if (messenger.enabled) {
+        if (messenger.state === 'ready') items.push(pill('ok', 'Messenger połączony'));
+        else if (messenger.state === 'login') items.push(pill('warn', 'Messenger: zaloguj się'));
+        else if (messenger.state === 'error') items.push(pill('bad', 'Messenger: błąd', messenger.error));
+        else items.push(pill('neutral', 'Messenger się uruchamia'));
+      }
       if (st.version) items.push(pill('neutral', `Wersja ${st.version}`));
     }
     clear(pills).append(...items);

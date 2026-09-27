@@ -49,6 +49,14 @@ def test_domownik_status(client, app, domownik):
     assert app.status()["domownik_url"] == "http://127.0.0.1:8080"
 
 
+def test_messenger_endpoints_when_disabled(client):
+    assert client.get("/api/messenger/status").json() == {"enabled": False, "state": "off", "error": ""}
+    assert client.get("/api/status").json()["messenger"]["state"] == "off"
+    threads = client.get("/api/messenger/threads")
+    assert threads.status_code == 409 and "wyłączony" in threads.json()["detail"]
+    assert client.post("/api/messenger/window", json={"visible": True}).status_code == 409
+
+
 def test_settings_validation_and_secrets(client, app):
     ok = client.put("/api/settings", json={"voice": {"tts_rate": 15}})
     assert ok.json()["settings"]["voice"]["tts_rate"] == 15

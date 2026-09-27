@@ -242,20 +242,25 @@ export function secretField({ key, label, hint }) {
   };
 }
 
-/** Edytowalna tabela kontaktów Discorda. */
+const MESSENGER_REF = /^(?:(?:https?:\/\/)?(?:www\.)?messenger\.com\/)?\/?(?:e2ee\/)?(?:t\/)?\d{5,25}\/?$/;
+
+/** Edytowalna tabela kontaktów (Discord i/lub Messenger). */
 export function contactsEditor() {
   const list = h('ul', { class: 'contacts-list' });
-  const empty = h('p', { class: 'contacts-empty' }, 'Brak kontaktów. Dodaj osobę, do której Jarvis ma pisać na Discordzie.');
+  const empty = h('p', { class: 'contacts-empty' }, 'Brak kontaktów. Dodaj osobę, do której Jarvis ma pisać na Discordzie albo Messengerze.');
+  // podpowiedzi ostatnich rozmów z Messengera (gdy jest włączony i zalogowany)
+  const threadsList = h('datalist', { id: uid('mthreads') });
   const addBtn = h('button', { type: 'button', class: 'btn' }, icon('plus'), 'Dodaj kontakt');
   const head = h(
     'div',
     { class: 'contacts-row contacts-head', 'aria-hidden': 'true' },
     h('span', null, 'Nazwa'),
     h('span', null, 'ID kanału Discord'),
+    h('span', null, 'Czat Messengera (link)'),
     h('span', null, 'Aliasy (po przecinku)'),
     h('span'),
   );
-  const el = h('div', { class: 'contacts' }, head, list, empty, h('div', { class: 'contacts-actions' }, addBtn));
+  const el = h('div', { class: 'contacts' }, head, list, empty, h('div', { class: 'contacts-actions' }, addBtn), threadsList);
   const rows = new Map(); // <li> → pola
 
   addBtn.addEventListener('click', () => {
@@ -282,6 +287,10 @@ export function contactsEditor() {
       class: 'input mono', type: 'text', inputmode: 'numeric', value: contact.channel_id || '', placeholder: 'np. 123456789012345678',
       'aria-label': `ID kanału Discord kontaktu ${n}`, autocomplete: 'off', spellcheck: 'false', maxlength: 25,
     });
+    const messenger = h('input', {
+      class: 'input mono', type: 'text', value: contact.messenger || '', placeholder: 'messenger.com/t/…',
+      list: threadsList.id, 'aria-label': `Czat Messengera kontaktu ${n}`, autocomplete: 'off', spellcheck: 'false', maxlength: 120,
+    });
     const aliases = h('input', {
       class: 'input', type: 'text', value: (contact.aliases || []).join(', '), placeholder: 'np. Piotr, Piotrka',
       'aria-label': `Aliasy kontaktu ${n}`, autocomplete: 'off', spellcheck: 'false', maxlength: 300,
@@ -296,8 +305,8 @@ export function contactsEditor() {
       notify();
       (next ? next.querySelector('input') : addBtn).focus();
     });
-    row.append(name, channel, aliases, remove);
-    rows.set(row, { name, channel, aliases });
+    row.append(name, channel, messenger, aliases, remove);
+    rows.set(row, { name, channel, messenger, aliases });
     list.append(row);
     syncEmpty();
     if (focus) name.focus();
@@ -313,9 +322,10 @@ export function contactsEditor() {
       const contact = {
         name: f.name.value.trim().toLocaleUpperCase('pl'),
         channel_id: f.channel.value.trim(),
+        messenger: f.messenger.value.trim(),
         aliases: f.aliases.value.split(',').map((s) => s.trim()).filter(Boolean),
       };
-      if (contact.name || contact.channel_id || contact.aliases.length) result.push(contact);
+      if (contact.name || contact.channel_id || contact.messenger || contact.aliases.length) result.push(contact);
     }
     return result;
   }
@@ -333,6 +343,7 @@ export function contactsEditor() {
           const c = next[i] || {};
           setIfIdle(f.name, c.name || '');
           setIfIdle(f.channel, c.channel_id || '');
+          setIfIdle(f.messenger, c.messenger || '');
           setIfIdle(f.aliases, (c.aliases || []).join(', '));
         });
         return;
@@ -349,9 +360,16 @@ export function contactsEditor() {
         if (!c.name) errors.add('Każdy kontakt musi mieć nazwę.');
         else if (seen.has(c.name)) errors.add('Nazwy kontaktów muszą być unikalne.');
         seen.add(c.name);
-        if (!/^\d{5,25}$/.test(c.channel_id)) errors.add(`Nieprawidłowe ID kanału dla kontaktu ${c.name || '?'}.`);
+        const who = c.name || '?';
+        if (c.channel_id && !/^\d{5,25}$/.test(c.channel_id)) errors.add(`Nieprawidłowe ID kanału Discorda dla kontaktu ${who}.`);
+        if (c.messenger && !MESSENGER_REF.test(c.messenger)) errors.add(`Nieprawidłowy link do czatu Messengera dla kontaktu ${who}.`);
+        if (!c.channel_id && !c.messenger) errors.add(`Kontakt ${who} potrzebuje ID kanału Discorda albo linku do czatu Messengera.`);
       }
       return errors.size ? Array.from(errors) : null;
+    },
+    /** Podpowiedzi w polu Messengera: [{ thread: 'e2ee/t/123', name: 'Natalia' }]. */
+    setMessengerThreads(threads) {
+      clear(threadsList).append(...threads.map((t) => h('option', { value: t.thread }, t.name)));
     },
   };
 }

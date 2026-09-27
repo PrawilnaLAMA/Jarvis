@@ -9,7 +9,9 @@ Tematy (topic) i ich dane:
 - tts.start        {text, words: [{text, start_ms, end_ms}]}
 - tts.word         {index, text}
 - tts.end          {interrupted: bool, spoken: str}
-- discord.message  {author, content, channel_id}
+- discord.message  {author, content, contact}
+- messenger.message {author, content, contact}
+- messenger.status {enabled, state: off|starting|login|ready|error, error}
 - notice           {text, level: info|warning|error}
 - settings.changed {}
 - ui.navigate      {view: jarvis|calendar|settings}

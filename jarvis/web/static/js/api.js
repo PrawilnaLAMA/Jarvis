@@ -85,6 +85,8 @@ export const api = {
   command: (text) => request('POST', 'api/command', { text }),
 
   domownikStatus: () => request('GET', 'api/domownik/status'),
+  messengerThreads: () => request('GET', 'api/messenger/threads'),
+  messengerWindow: (visible) => request('POST', 'api/messenger/window', { visible }),
 
   settings: () => request('GET', 'api/settings'),
   saveSettings: (patch) => request('PUT', 'api/settings', patch),

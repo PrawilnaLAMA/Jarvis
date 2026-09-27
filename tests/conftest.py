@@ -1,6 +1,7 @@
 import pytest
 
 from jarvis.events import EventBus
+from jarvis.services.inbox import Inbox
 
 
 class Recorder:
@@ -85,9 +86,37 @@ class FakeDomownik:
         return before - len(self.items)
 
 
+class FakeMessenger:
+    """Atrapa MessengerService – zapamiętuje wysłane wiadomości."""
+
+    def __init__(self):
+        self.sent: list[tuple[str, str]] = []
+        self.error = None
+
+    def send(self, thread, text):
+        if self.error:
+            raise self.error
+        self.sent.append((thread, text))
+
+
 @pytest.fixture
 def domownik() -> FakeDomownik:
     return FakeDomownik()
+
+
+@pytest.fixture
+def messenger() -> FakeMessenger:
+    return FakeMessenger()
+
+
+@pytest.fixture
+def spoken() -> list[str]:
+    return []
+
+
+@pytest.fixture
+def inbox(bus: EventBus, spoken: list[str]) -> Inbox:
+    return Inbox(bus, spoken.append, clock=lambda: 1_000_000.0)
 
 
 @pytest.fixture

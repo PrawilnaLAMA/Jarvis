@@ -1442,6 +1442,14 @@ input[type="time"].input {
   color: #9aa2ff;
 }
 
+.entry-messenger {
+  border-left: 3px solid #a855f7;
+}
+
+.entry-messenger .icon {
+  color: #c084fc;
+}
+
 .day-sep {
   display: flex;
   align-items: center;
@@ -1827,7 +1835,7 @@ input[type="time"].input {
 
 .contacts-row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(170px, 1.3fr) minmax(160px, 2fr) var(--tap);
+  grid-template-columns: minmax(100px, 1fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(130px, 1.5fr) var(--tap);
   align-items: center;
   gap: 8px;
 }
@@ -1850,19 +1858,35 @@ input[type="time"].input {
     display: none;
   }
 
+  /* wąsko: nazwa + usuń, pod spodem Discord i Messenger, na końcu aliasy */
   .contacts-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) var(--tap);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--tap);
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 12px;
   }
 
-  .contacts-row > :nth-child(3) {
+  .contacts-row > :nth-child(1) {
     grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .contacts-row > :nth-child(2) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .contacts-row > :nth-child(3) {
+    grid-column: 2 / 4;
     grid-row: 2;
   }
 
   .contacts-row > :nth-child(4) {
+    grid-column: 1 / 4;
+    grid-row: 3;
+  }
+
+  .contacts-row > :nth-child(5) {
     grid-column: 3;
     grid-row: 1;
   }

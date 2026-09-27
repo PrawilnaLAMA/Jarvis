@@ -24,15 +24,34 @@ log = logging.getLogger(__name__)
 BARGE_IN_MODES = ("any", "wakeword", "off")
 
 
+MESSAGING_APPS = ("discord", "messenger")
+_MESSENGER_REF = re.compile(r"(?:(?:https?://)?(?:www\.)?messenger\.com/)?/?(e2ee/)?(?:t/)?(\d{5,25})/?")
+
+
+def messenger_thread(ref: str) -> str | None:
+    """Ścieżka czatu Messengera z linku lub numeru: „…/e2ee/t/123/” → „e2ee/t/123”, „123” → „t/123”."""
+    match = _MESSENGER_REF.fullmatch(ref.strip())
+    if not match:
+        return None
+    return f"{match.group(1) or ''}t/{match.group(2)}"
+
+
 @dataclass
 class Contact:
     name: str  # nazwa używana przez LLM, np. "PIOTREK"
-    channel_id: str
+    channel_id: str = ""  # kanał Discorda (rozmowa prywatna); pusty = kontakt bez Discorda
     aliases: list[str] = field(default_factory=list)  # inne formy, np. "Piotr", "Piotrka"
+    messenger: str = ""  # link do czatu z messenger.com albo jego numer; pusty = bez Messengera
 
     @property
     def display_name(self) -> str:
         return self.name.capitalize()
+
+    @property
+    def apps(self) -> list[str]:
+        """Komunikatory, na których można napisać do kontaktu."""
+        refs = {"discord": self.channel_id, "messenger": self.messenger}
+        return [app for app in MESSAGING_APPS if refs[app].strip()]
 
 
 @dataclass
@@ -73,6 +92,15 @@ class DiscordSettings:
 
 
 @dataclass
+class MessengerSettings:
+    # Messenger nie ma API dla prywatnych kont – Jarvis steruje messenger.com w osobnej przeglądarce
+    enabled: bool = False
+    read_aloud: bool = True
+    poll_seconds: float = 3.0
+    browser: str = ""  # pusty = Chrome (a bez niego Edge/Chromium), albo ścieżka do pliku przeglądarki
+
+
+@dataclass
 class UISettings:
     fullscreen: bool = False
 
@@ -84,6 +112,7 @@ class Settings:
     voice: VoiceSettings = field(default_factory=VoiceSettings)
     domownik: DomownikSettings = field(default_factory=DomownikSettings)
     discord: DiscordSettings = field(default_factory=DiscordSettings)
+    messenger: MessengerSettings = field(default_factory=MessengerSettings)
     ui: UISettings = field(default_factory=UISettings)
 
     def contact_by_name(self, name: str) -> Contact | None:
@@ -160,8 +189,12 @@ def validate(settings: Settings) -> list[str]:
     if len(set(names)) != len(names):
         errors.append("Nazwy kontaktów muszą być unikalne.")
     for c in settings.contacts:
-        if not re.fullmatch(r"\d{5,25}", c.channel_id.strip()):
-            errors.append(f"Nieprawidłowe ID kanału dla kontaktu {c.name or '?'}.")
+        if c.channel_id.strip() and not re.fullmatch(r"\d{5,25}", c.channel_id.strip()):
+            errors.append(f"Nieprawidłowe ID kanału Discorda dla kontaktu {c.name or '?'}.")
+        if c.messenger.strip() and not messenger_thread(c.messenger):
+            errors.append(f"Nieprawidłowy link do czatu Messengera dla kontaktu {c.name or '?'}.")
+        if not c.apps:
+            errors.append(f"Kontakt {c.name or '?'} potrzebuje ID kanału Discorda albo linku do czatu Messengera.")
     v = settings.voice
     if v.barge_in not in BARGE_IN_MODES:
         errors.append("Nieznany tryb przerywania.")
@@ -179,6 +212,8 @@ def validate(settings: Settings) -> list[str]:
         errors.append("Adres Domownika musi zaczynać się od http:// lub https://, np. http://127.0.0.1:8080.")
     if not 1 <= settings.discord.poll_seconds <= 300:
         errors.append("Odświeżanie Discorda musi być między 1 a 300 s.")
+    if not 1 <= settings.messenger.poll_seconds <= 300:
+        errors.append("Odświeżanie Messengera musi być między 1 a 300 s.")
     return errors
 
 

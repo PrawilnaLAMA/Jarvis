@@ -63,9 +63,9 @@ def test_agenda_days_are_clamped():
 
 
 @pytest.fixture
-def ctx(tmp_path, bus, domownik):
+def ctx(tmp_path, bus, domownik, messenger, inbox):
     return ToolContext(settings=SettingsStore(tmp_path / "s.json"), bus=bus, domownik=domownik, discord=None,
-                       conversation=None, clock=lambda: NOW)
+                       messenger=messenger, inbox=inbox, conversation=None, clock=lambda: NOW)
 
 
 def test_agenda_includes_schedule_and_overdue(ctx):

@@ -15,6 +15,8 @@ from jarvis.migration import migrate_legacy_data
 from jarvis.services.discord_client import DiscordClient
 from jarvis.services.discord_monitor import DiscordMonitor
 from jarvis.services.domownik_client import DomownikClient
+from jarvis.services.inbox import Inbox
+from jarvis.services.messenger import MessengerService
 from jarvis.settings import Secrets, SettingsStore
 from jarvis.state import StatusTracker
 from jarvis.tools import ToolContext
@@ -45,11 +47,22 @@ class JarvisApp:
             data_dir / "conversation.json", lambda: self.settings.get().llm.history_messages
         )
         self.discord = DiscordClient(lambda: self.secrets.discord_token)
+        self.inbox = Inbox(self.bus, self.announce)
+        # profil przeglądarki z zalogowanym Messengerem – jak dane użytkownika, poza repozytorium
+        self.messenger = MessengerService(self.settings, self.bus, self.inbox, data_dir / "messenger")
         self.llm = llm or LLMClient(
             lambda: providers_from(self.settings.get(), self.secrets),
             on_limit_wait=lambda s: self.bus.notice(f"Limit zapytań do modelu – czekam {s:.0f} s…", "warning"),
         )
-        tool_context = ToolContext(self.settings, self.bus, self.domownik, self.discord, self.conversation)
+        tool_context = ToolContext(
+            settings=self.settings,
+            bus=self.bus,
+            domownik=self.domownik,
+            discord=self.discord,
+            messenger=self.messenger,
+            inbox=self.inbox,
+            conversation=self.conversation,
+        )
         self.assistant = Assistant(self.llm, tool_context, self.settings, self.bus, self.conversation)
         self.stop_event = threading.Event()
 
@@ -63,8 +76,8 @@ class JarvisApp:
         else:
             self.tracker.set_listener("idle")
 
-        self.discord_monitor = DiscordMonitor(self.discord, self.settings, self.bus, self.announce)
-        self.bus.subscribe(lambda _: self.publish_status(), {"voice.status", "settings.changed"})
+        self.discord_monitor = DiscordMonitor(self.discord, self.settings, self.bus, self.inbox)
+        self.bus.subscribe(lambda _: self.publish_status(), {"voice.status", "messenger.status", "settings.changed"})
 
     # --- cykl życia ---
 
@@ -72,12 +85,14 @@ class JarvisApp:
         if self.voice:
             self.voice.start(self.stop_event)
         threading.Thread(target=self.discord_monitor.run, args=(self.stop_event,), name="discord", daemon=True).start()
+        self.messenger.start(self.stop_event)
         if not self.llm.configured:
             self.bus.notice("Brak klucza GROQ_API_KEY – dodaj go w Ustawieniach, żeby Jarvis mógł odpowiadać.",
                             "warning")
 
     def shutdown(self) -> None:
         self.stop_event.set()
+        self.messenger.join(5)  # zamknięcie przeglądarki, żeby nie została w tle
         if self.voice:
             self.voice.close()
 
@@ -122,6 +137,7 @@ class JarvisApp:
             "voice": voice,
             "llm_configured": self.llm.configured,
             "discord_configured": self.discord.configured,
+            "messenger": self.messenger.status(),
             "domownik_url": self.settings.get().domownik.url,
         }
 
