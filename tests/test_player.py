@@ -116,6 +116,26 @@ def test_play_full_flow_with_fake_device(bus, recorder, monkeypatch):
         player.close()
 
 
+def test_waits_for_start_buffer_so_speech_has_no_gaps(bus):
+    player = Player(bus)
+    player._reset()
+    player._playing = True
+    player._min_start_samples = int(1.5 * TTS_SAMPLE_RATE)
+    player._buffer = SEGMENTS[0].samples.copy()  # 1 s gotowe, reszta jeszcze się generuje
+    assert drive(player, 10).max() == 0.0 and player._pos == 0  # za mały zapas – jeszcze cisza
+    player._buffer = np.concatenate([player._buffer, SEGMENTS[1].samples])  # 2 s ≥ 1,5 s
+    assert drive(player, 1).max() > 0
+
+
+def test_short_reply_starts_when_complete(bus):
+    player = Player(bus)
+    player._reset()
+    player._playing = True
+    player._min_start_samples = int(5 * TTS_SAMPLE_RATE)
+    player._produce(iter(SEGMENTS[:1]), "Ala ma kota.")  # całość gotowa, choć krótsza niż zapas
+    assert drive(player, 1).max() > 0
+
+
 def test_effect_is_mixed_even_when_idle(bus):
     player = Player(bus)
     player._effect = np.full(300, 0.5, dtype=np.float32)

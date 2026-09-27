@@ -71,6 +71,9 @@ class Player:
         self._volume = 1.0
         self._level = 0.0
         self._spoken_chars = 0
+        self._started = False
+        self._min_start_samples = 0
+        self._gap_samples = 0  # ile ciszy wynikło z czekania na kolejny fragment (diagnostyka)
         self._finished.clear()
 
     # --- sterowanie (z dowolnego wątku) ---
@@ -155,11 +158,13 @@ class Player:
 
     # --- odtwarzanie ---
 
-    def play(self, segments: Iterable[Speech], full_text: str) -> PlaybackResult:
-        """Blokuje do końca odtwarzania albo zatrzymania."""
+    def play(self, segments: Iterable[Speech], full_text: str, min_start: float = 0.0) -> PlaybackResult:
+        """Blokuje do końca odtwarzania albo zatrzymania. `min_start` – ile sekund dźwięku musi być gotowe,
+        zanim zacznie grać (zapas na generowanie kolejnych fragmentów, żeby nie było przerw w mowie)."""
         with self._lock:
             self._reset()
             self._volume = self._volume_provider()
+            self._min_start_samples = int(min_start * TTS_SAMPLE_RATE)
             self._playing = True
         producer = threading.Thread(target=self._produce, args=(segments, full_text), daemon=True)
         producer.start()
@@ -186,6 +191,8 @@ class Player:
         with self._lock:
             interrupted = self._stopping
             self._playing = False
+        if self._gap_samples:
+            log.info("Przerwy w mowie (czekanie na syntezę): %.0f ms", self._gap_samples / TTS_SAMPLE_RATE * 1000)
         self._bus.publish("audio.level", source="tts", level=0.0)
         return PlaybackResult(interrupted, self.spoken_text(full_text) if interrupted else full_text)
 
@@ -214,12 +221,19 @@ class Player:
         chunk = np.zeros(frames, dtype=np.float32)
         done = False
         with self._lock:
-            if self._playing and not self._finished.is_set():
+            if self._playing and not self._started:
+                ready = self._buffer.size
+                self._started = self._input_done or (ready > 0 and ready >= self._min_start_samples)
+                if self._stopping and not self._started:
+                    done = True
+            if self._playing and self._started and not self._finished.is_set():
                 available = self._buffer.size - self._pos
                 n = min(frames, max(available, 0))
                 if n:
                     chunk[:n] = self._buffer[self._pos : self._pos + n]
                     self._pos += n
+                if n < frames and not self._input_done and not self._stopping:
+                    self._gap_samples += frames - n
                 # płynna zmiana głośności (bez trzasków): pełna rampa trwa RAMP_SECONDS
                 step = frames / (RAMP_SECONDS * TTS_SAMPLE_RATE)
                 end_gain = self._gain + float(np.clip(self._target - self._gain, -step, step))
