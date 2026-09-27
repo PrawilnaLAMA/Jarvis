@@ -1,5 +1,12 @@
-PyAudio
-dotenv
-requests
-gtts
-SpeechRecognition
+fastapi>=0.110
+uvicorn>=0.29
+websockets>=12
+pywebview>=5.0
+sounddevice>=0.4.6
+numpy>=1.24
+miniaudio>=1.59
+edge-tts>=7.0
+openwakeword>=0.6.0
+onnxruntime>=1.16
+requests>=2.31
+python-dotenv>=1.0

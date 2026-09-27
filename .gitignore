@@ -1,25 +1,20 @@
-# Ignore environment variables
+# Sekrety
 .env
 
-# Ignore Python cache files
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-**/__pycache__/
+# Dane użytkownika (ustawienia, kalendarz, historia rozmowy, modele wake word, logi)
+data/
 
-# Ignore cache and conversation history
+# Stare lokalizacje danych (sprzed refaktoru)
 cache/
-cache/**
-conversation_history*.json
-
-# Ignore saved events
 calendar_app/events.json
 
-# Ignore batch files
-jarvis.bat
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
 
-# Ignore virtual environment
+# Środowiska wirtualne
 .venv/
 venv/
 env/
