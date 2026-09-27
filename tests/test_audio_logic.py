@@ -6,7 +6,7 @@ from jarvis.audio.devices import resample, rms, ui_level
 from jarvis.audio.recorder import UtteranceRecorder
 from jarvis.audio.stt import to_wav, vocabulary_prompt
 from jarvis.audio.transcript import clean_transcript, echo_similarity, is_echo, is_hallucination, strip_wake_phrase
-from jarvis.audio.tts import locate_words, split_sentences, voice_entries
+from jarvis.audio.tts import Speech, WordMark, locate_words, split_for_speech, trim_silence, voice_entries
 from jarvis.settings import Settings
 
 FRAME = np.zeros(1280, dtype=np.int16)
@@ -121,10 +121,31 @@ def test_recorder_keeps_preroll_and_limits_length():
     assert rec.audio().size == 1280 * (2 + 5)
 
 
-def test_split_sentences_merges_short_ones():
-    text = "Jasne. Dodałem wydarzenie do kalendarza na piątek. Coś jeszcze?"
-    assert split_sentences(text) == ["Jasne. Dodałem wydarzenie do kalendarza na piątek.", "Coś jeszcze?"]
-    assert split_sentences("") == []
+def test_split_for_speech_short_first_chunk():
+    text = ("Czy wiesz, że w 2026 roku planowane jest otwarcie pierwszego hotelu pod wodą, gdzie goście będą "
+            "mogli spać w przezroczystych pokojach? To ciekawe.")
+    chunks = split_for_speech(text)
+    assert chunks[0] == "Czy wiesz,"  # pierwszy fragment krótki → szybki pierwszy dźwięk
+    assert " ".join(chunks) == text  # nic nie ginie
+    for prev, nxt in zip(chunks, chunks[1:], strict=False):  # każdy następny zdąży się wygenerować
+        assert len(nxt) <= max(40, 5 * len(prev)) and len(nxt) <= 140
+    assert split_for_speech("Otwieram kalendarz.") == ["Otwieram kalendarz."]
+    assert split_for_speech("") == []
+    # długie zdanie bez przecinka: pierwszy fragment ucięty na granicy słowa
+    long = "Aż 75% wszystkich nowych gatunków odkrytych w ostatniej dekadzie pochodzi z głębin oceanów, które są."
+    chunks = split_for_speech(long)
+    assert chunks[0] == "Aż 75% wszystkich nowych gatunków odkrytych"  # nie „…odkrytych w”
+    assert " ".join(chunks) == long
+    assert not any(c.rsplit(" ", 1)[-1] in {"w", "z", "że", "na", "do"} for c in chunks)
+
+
+def test_trim_silence_keeps_word_timing():
+    rate = 24000
+    samples = np.concatenate([np.zeros(rate // 10), np.full(rate, 0.1), np.zeros(rate // 2)]).astype(np.float32)
+    speech = Speech("Ala", samples, [WordMark("Ala", 0.1, 3)])
+    trimmed = trim_silence(speech, lead=0.02, tail=0.1)
+    assert trimmed.duration == pytest.approx(0.02 + 1.0 + 0.1, abs=0.002)
+    assert trimmed.words[0].start == pytest.approx(0.02, abs=0.001)
 
 
 def test_voice_entries_polish_first_then_multilingual():
