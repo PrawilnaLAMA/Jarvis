@@ -111,6 +111,7 @@ class MessengerSettings:
 @dataclass
 class UISettings:
     fullscreen: bool = False
+    desktop_orb: bool = True  # Windows: kulka na pulpicie (pod oknami) zamiast zwykłego okna z paskiem tytułu
 
 
 @dataclass

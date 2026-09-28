@@ -11,6 +11,7 @@ import { initControls } from './controls.js';
 import { initChat } from './chat.js';
 import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
+import { initDesktop } from './desktop.js';
 
 const VIEWS = ['jarvis', 'dom', 'settings'];
 
@@ -74,6 +75,11 @@ const views = {
 };
 
 initControls(ctx); // na końcu – Esc najpierw zamyka panele, dopiero potem przerywa mówienie
+initDesktop({
+  ...ctx,
+  // pod zwiniętą kulką duża kula stoi (ostatnia klatka zostaje – rozwinięcie ją tylko odsłania)
+  onModeChange: (mode) => orb.setActive(mode === 'full' && store.get().view === 'jarvis'),
+});
 
 store.subscribe(render);
 render(store.get());

@@ -6,6 +6,19 @@
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#05070d">
   <title>Jarvis</title>
+  <script>
+    // kulka na pulpicie (Windows): tryb i miejsce kulki znane od razu – bez mignięcia interfejsu w kulce
+    (function () {
+      var q = new URLSearchParams(location.search);
+      if (!q.has('desktop')) return;
+      var root = document.documentElement;
+      root.dataset.desktop = '';
+      root.dataset.mode = q.get('desktop');
+      [['ox', '--orb-x'], ['oy', '--orb-y'], ['os', '--orb-size']].forEach(function (p) {
+        if (q.has(p[0])) root.style.setProperty(p[1], q.get(p[0]) + 'px');
+      });
+    })();
+  </script>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="css/app.css">
   <script type="module" src="js/app.js"></script>
@@ -38,10 +51,18 @@
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
     <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M9.9 5.8A9.5 9.5 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.4 7.6A15.6 15.6 0 0 0 2.5 12S6 18.5 12 18.5a9.2 9.2 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-collapse" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5V4h5.5M20 9.5V4h-5.5M4 14.5V20h5.5M20 14.5V20h-5.5"/><circle cx="12" cy="12" r="2.6"/></g></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M7.2 6.6a7 7 0 1 0 9.6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </svg>
 
-  <header class="topbar">
+  <!-- Kulka na pulpicie (tylko okno Jarvisa na Windowsie; js/desktop.js) -->
+  <div class="desk-orb pywebview-drag-region" id="desk-orb" role="button" tabindex="0" aria-label="Rozwiń Jarvisa"
+       title="Kliknij – rozwiń Jarvisa. Przeciągnij – przenieś. Prawy przycisk – menu.">
+    <canvas id="desk-orb-canvas" aria-hidden="true"></canvas>
+  </div>
+
+  <header class="topbar pywebview-drag-region">
     <div class="brand">
       <svg class="brand-mark" aria-hidden="true" focusable="false"><use href="#i-logo"/></svg>
       <span class="brand-text">J.A.R.V.I.S.</span>
@@ -58,6 +79,15 @@
       <span class="conn-main" id="conn-main" role="status">Łączenie…</span>
       <span class="conn-sep" id="conn-sep" aria-hidden="true" hidden>·</span>
       <span class="conn-state" id="conn-state"></span>
+    </div>
+
+    <div class="win-controls" role="group" aria-label="Okno">
+      <button type="button" class="icon-btn win-btn" id="win-collapse" title="Zwiń do kulki" aria-label="Zwiń do kulki">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-collapse"/></svg>
+      </button>
+      <button type="button" class="icon-btn win-btn win-btn-close" id="win-close" title="Zamknij Jarvisa" aria-label="Zamknij Jarvisa">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-power"/></svg>
+      </button>
     </div>
   </header>
 

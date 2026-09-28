@@ -35,6 +35,13 @@ py -m pip install -r requirements.txt
 Uruchomienie: dwuklik w `jarvis.bat` (albo `jarvis.pyw`) – Jarvis startuje w tle, bez okna konsoli;
 logi są w `data/jarvis.log`. Z logami na ekranie: `py -m jarvis` w terminalu.
 
+Na Windowsie Jarvis jest **kulką na pulpicie**: leży pod oknami, więc widać ją, gdy patrzysz na pulpit
+(np. po Win+D albo kliknięciu w tapetę), a znika pod VS Code czy przeglądarką. Kliknięcie rozwija całego
+Jarvisa; przyciski w prawym górnym rogu zwijają go z powrotem do kulki albo zamykają. Kulkę można przeciągnąć w inne miejsce,
+a prawy przycisk daje menu (Otwórz, Ustawienia, Zamknij). Podwójne kliknięcie paska rozciąga okno na cały
+ekran. Polecenia głosowe typu „otwórz kalendarz” też rozwijają kulkę. Zwykłe okno wraca po wyłączeniu
+**Ustawienia → Interfejs → Kulka na pulpicie**.
+
 Żeby Jarvis włączał się razem z Windowsem, zaznacz **Ustawienia → Interfejs → Uruchamiaj razem
 z Windowsem** (wpis widać też w Menedżerze zadań → Aplikacje autostartu). Ponowne uruchomienie, gdy
 Jarvis już działa, tylko przywołuje jego okno – nie startuje drugiej kopii.

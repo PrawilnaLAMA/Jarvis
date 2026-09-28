@@ -185,6 +185,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     card(
       'ui', 'Interfejs', { section: 'ui' },
       autostartBox,
+      uiF('desktop_orb', toggleField({ label: 'Kulka na pulpicie', hint: 'Jarvis jako kulka na pulpicie – pod oknami, widoczna, gdy patrzysz na pulpit; bez paska tytułu i przycisku na pasku zadań. Kliknięcie rozwija okno. Tylko Windows, wymaga ponownego uruchomienia.' })),
       uiF('fullscreen', toggleField({ label: 'Pełny ekran', hint: 'Wymaga ponownego uruchomienia aplikacji.' })),
     ),
   ];

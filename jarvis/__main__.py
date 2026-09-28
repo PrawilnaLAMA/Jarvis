@@ -97,7 +97,7 @@ def main() -> None:
 
     try:
         fullscreen = args.fullscreen or app.settings.get().ui.fullscreen
-        if args.browser or not run_window(server.url, app.bus, fullscreen=fullscreen, debug=args.debug):
+        if args.browser or not run_window(server.url, app.bus, app.settings, fullscreen=fullscreen, debug=args.debug):
             webbrowser.open(server.url)
             log.info("Ctrl+C kończy działanie")
             while True:
