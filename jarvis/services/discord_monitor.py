@@ -2,6 +2,8 @@
 
 import logging
 import threading
+import time
+from collections.abc import Callable
 
 from jarvis.events import EventBus
 from jarvis.services.discord_client import DiscordClient, DiscordError
@@ -10,15 +12,31 @@ from jarvis.settings import SettingsStore
 
 log = logging.getLogger(__name__)
 
+# Discord co jakiś czas odpowiada 503 albo zrywa połączenie, a chwilę później działa – takie czkawki
+# ponawiamy po cichu. Komunikat pokazujemy dopiero, gdy nie odpowiada dłużej niż tyle sekund.
+OUTAGE_SECONDS = 120
+MAX_BACKOFF_SECONDS = 60
+
 
 class DiscordMonitor:
-    def __init__(self, client: DiscordClient, settings: SettingsStore, bus: EventBus, inbox: Inbox):
+    def __init__(
+        self,
+        client: DiscordClient,
+        settings: SettingsStore,
+        bus: EventBus,
+        inbox: Inbox,
+        clock: Callable[[], float] = time.monotonic,
+    ):
         self._client = client
         self._settings = settings
         self._bus = bus
         self._inbox = inbox
+        self._clock = clock
         self._last_ids: dict[str, str | None] = {}
-        self._last_error = ""
+        self._last_error = ""  # trwały błąd (np. zły token) zgłoszony już raz
+        self._failures = 0  # kolejne chwilowe błędy z rzędu
+        self._failing_since: float | None = None
+        self._outage_reported = False
 
     def poll_once(self) -> list[str]:
         """Sprawdza każdy kanał raz; zwraca teksty ogłoszonych wiadomości."""
@@ -44,18 +62,41 @@ class DiscordMonitor:
             announced.append(self._inbox.receive("discord", contact, content, settings.discord.read_aloud))
         return announced
 
+    def check(self) -> float:
+        """Jedno odpytanie z obsługą błędów; zwraca, ile sekund czekać do następnego."""
+        settings = self._settings.get()
+        interval = settings.discord.poll_seconds
+        if not (self._client.configured and any(c.channel_id.strip() for c in settings.contacts)):
+            return interval
+        try:
+            self.poll_once()
+        except DiscordError as e:
+            return self._failed(e, interval)
+        except Exception:
+            log.exception("Błąd monitorowania Discorda")
+            return interval
+        if self._outage_reported:
+            self._bus.notice("Discord znów odpowiada.", "info")
+        self._failures, self._failing_since, self._outage_reported, self._last_error = 0, None, False, ""
+        return interval
+
+    def _failed(self, error: DiscordError, interval: float) -> float:
+        if not error.temporary:
+            if str(error) != self._last_error:  # ten sam trwały błąd zgłaszamy tylko raz
+                self._last_error = str(error)
+                self._bus.notice(f"Discord: {error}", "warning")
+            return interval
+        now = self._clock()
+        if self._failing_since is None:
+            self._failing_since = now
+        self._failures += 1
+        log.info("Discord chwilowo nie odpowiada (%s) – próba %d", error, self._failures)
+        down = now - self._failing_since
+        if not self._outage_reported and down >= OUTAGE_SECONDS:
+            self._outage_reported = True
+            self._bus.notice(f"Discord nie odpowiada od {down / 60:.0f} min ({error}) – sprawdzam dalej.", "warning")
+        return min(interval * 2**self._failures, MAX_BACKOFF_SECONDS)
+
     def run(self, stop: threading.Event) -> None:
         while not stop.is_set():
-            settings = self._settings.get()
-            if self._client.configured and any(c.channel_id.strip() for c in settings.contacts):
-                try:
-                    self.poll_once()
-                    self._last_error = ""
-                except DiscordError as e:
-                    # ten sam błąd zgłaszamy tylko raz, żeby nie zasypać UI
-                    if str(e) != self._last_error:
-                        self._last_error = str(e)
-                        self._bus.notice(f"Discord: {e}", "warning")
-                except Exception:
-                    log.exception("Błąd monitorowania Discorda")
-            stop.wait(settings.discord.poll_seconds)
+            stop.wait(self.check())

@@ -1,15 +1,21 @@
 """Minimalny klient REST Discorda działający na tokenie użytkownika."""
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 import requests
 
+log = logging.getLogger(__name__)
+
 API_URL = "https://discord.com/api/v9"
 
 
 class DiscordError(Exception):
-    pass
+    def __init__(self, message: str, temporary: bool = False):
+        super().__init__(message)
+        # chwilowa czkawka (5xx, limit zapytań, zerwane połączenie) – następna próba zwykle się udaje
+        self.temporary = temporary
 
 
 class DiscordClient:
@@ -37,11 +43,14 @@ class DiscordClient:
                 method, f"{self._api_url}{path}", headers={"authorization": token}, timeout=15, **kwargs
             )
         except requests.RequestException as e:
-            raise DiscordError(f"Brak połączenia z Discordem: {e}") from e
+            log.debug("Discord %s %s: %s", method, path, e)
+            raise DiscordError("Brak połączenia z Discordem.", temporary=True) from e
         if response.status_code == 401:
             raise DiscordError("Token Discorda jest nieprawidłowy.")
         if response.status_code == 429:
-            raise DiscordError("Discord ogranicza liczbę zapytań, spróbuj za chwilę.")
+            raise DiscordError("Discord ogranicza liczbę zapytań, spróbuj za chwilę.", temporary=True)
+        if response.status_code >= 500:
+            raise DiscordError(f"Discord chwilowo nie działa – błąd {response.status_code}.", temporary=True)
         if response.status_code >= 400:
             raise DiscordError(f"Discord zwrócił błąd {response.status_code}.")
         return response.json() if response.content else None

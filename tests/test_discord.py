@@ -56,6 +56,48 @@ def test_client_errors_are_polish(session, client):
         client.send_message("1", "hej")
     with pytest.raises(DiscordError, match="Brak tokenu"):
         DiscordClient(lambda: None, session=session).me()
+    session.status = 503
+    with pytest.raises(DiscordError, match="chwilowo") as err:
+        client.send_message("1", "hej")
+    assert err.value.temporary is True
+
+
+def test_monitor_retries_hiccups_quietly(tmp_path, bus, recorder, session, client, inbox):
+    settings = SettingsStore(tmp_path / "s.json")
+    settings.update({"contacts": [{"name": "PIOTREK", "channel_id": "111111"}], "discord": {"poll_seconds": 3}})
+    now = [0.0]
+    monitor = DiscordMonitor(client, settings, bus, inbox, clock=lambda: now[0])
+    session.status = 503
+
+    delays = []
+    for _ in range(4):  # pojedyncze 503 i kilkadziesiąt sekund przerwy – bez komunikatu, coraz rzadziej
+        delays.append(monitor.check())
+        now[0] += delays[-1]
+    assert delays == [6, 12, 24, 48] and recorder.of("notice") == []
+
+    now[0] += 60  # dłuższa awaria – jeden komunikat, potem cisza
+    assert monitor.check() == 60
+    monitor.check()
+    notices = [n["text"] for n in recorder.of("notice")]
+    assert len(notices) == 1 and "nie odpowiada od" in notices[0]
+
+    session.status = 200
+    assert monitor.check() == 3
+    assert recorder.of("notice")[-1]["text"] == "Discord znów odpowiada."
+
+    session.status = 503  # kolejna pojedyncza czkawka po powrocie – znowu cicho
+    monitor.check()
+    assert len(recorder.of("notice")) == 2
+
+
+def test_monitor_reports_permanent_error_once(tmp_path, bus, recorder, session, client, inbox):
+    settings = SettingsStore(tmp_path / "s.json")
+    settings.update({"contacts": [{"name": "PIOTREK", "channel_id": "111111"}]})
+    monitor = DiscordMonitor(client, settings, bus, inbox)
+    session.status = 401
+    monitor.check()
+    monitor.check()
+    assert [n["text"] for n in recorder.of("notice")] == ["Discord: Token Discorda jest nieprawidłowy."]
 
 
 def test_monitor_announces_only_new_foreign_messages(tmp_path, bus, recorder, session, client, inbox, spoken):
