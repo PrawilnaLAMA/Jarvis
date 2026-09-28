@@ -15,6 +15,7 @@ Tematy (topic) i ich dane:
 - notice           {text, level: info|warning|error}
 - settings.changed {}
 - ui.navigate      {view: jarvis|dom|settings, path?}  – path: podstrona Domownika, np. /zakupy
+- ui.show          {}                                   – przywołaj okno (drugie uruchomienie Jarvisa)
 - domownik.status  {serve, state: off|starting|running|error, error, url, lan_url}
 """
 

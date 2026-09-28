@@ -18,7 +18,7 @@ from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from jarvis import paths
+from jarvis import autostart, paths
 from jarvis.app import JarvisApp
 from jarvis.events import Event, EventBus
 from jarvis.llm import LLMError
@@ -95,6 +95,28 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
         if not text:
             raise HTTPException(400, "Puste polecenie.")
         return {"reply": jarvis.respond(text, "text")}
+
+    @api.post("/api/window/show")
+    def window_show() -> dict[str, Any]:
+        """Drugie uruchomienie Jarvisa (np. obok autostartu) przywołuje okno tego zamiast startować."""
+        jarvis.bus.publish("ui.show")
+        return {"shown": True}
+
+    # --- autostart z Windowsem ---
+
+    @api.get("/api/autostart")
+    def autostart_status() -> dict[str, Any]:
+        return autostart.status()
+
+    @api.put("/api/autostart")
+    def autostart_set(payload: dict[str, Any] = Body(...)) -> Any:
+        if not autostart.supported():
+            return _error(409, "Autostart da się ustawić tylko w Windowsie.")
+        try:
+            autostart.set_enabled(bool(payload.get("enabled")))
+        except OSError as e:
+            return _error(500, f"Nie udało się zmienić autostartu: {e}")
+        return autostart.status()
 
     # --- Domownik (zakładka Dom) ---
 

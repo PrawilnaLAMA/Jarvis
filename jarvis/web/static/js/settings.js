@@ -83,6 +83,11 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   let messengerKey = '';
   let threadsLoaded = false;
   const domownikBtn = h('button', { type: 'button', class: 'btn' }, icon('refresh'), 'Sprawdź połączenie');
+  // autostart żyje w rejestrze Windows, nie w settings.json – przełącznik działa od razu, bez „Zapisz”
+  const autostart = toggleField({ label: 'Uruchamiaj razem z Windowsem', hint: 'Jarvis startuje po zalogowaniu, bez okna konsoli. Działa od razu, bez zapisywania.' });
+  const autostartMsg = h('span', { class: 'inline-msg', role: 'status' });
+  const autostartBox = h('div', { hidden: true }, autostart.el, autostartMsg);
+  autostart.input.addEventListener('change', saveAutostart);
   domownikBtn.addEventListener('click', checkDomownik);
 
   function fields(cardId, section, live = false) {
@@ -179,6 +184,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     ),
     card(
       'ui', 'Interfejs', { section: 'ui' },
+      autostartBox,
       uiF('fullscreen', toggleField({ label: 'Pełny ekran', hint: 'Wymaga ponownego uruchomienia aplikacji.' })),
     ),
   ];
@@ -240,6 +246,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       if (!loaded) load();
       loadOptions();
       loadMessengerThreads();
+      loadAutostart();
       meter.start();
       applyPendingFocus();
     },
@@ -588,6 +595,31 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       await api.messengerWindow(show);
     } catch (err) {
       setInline(err.message, 'error', messengerMsg);
+    }
+  }
+
+  async function loadAutostart() {
+    try {
+      const res = await api.autostart();
+      autostartBox.hidden = !res.supported;
+      autostart.set(res.enabled);
+    } catch {
+      autostartBox.hidden = true;
+    }
+  }
+
+  async function saveAutostart() {
+    const enabled = autostart.get();
+    autostart.input.disabled = true;
+    try {
+      const res = await api.setAutostart(enabled);
+      autostart.set(res.enabled);
+      setInline(res.enabled ? 'Jarvis wystartuje po następnym zalogowaniu.' : 'Autostart wyłączony.', 'ok', autostartMsg);
+    } catch (err) {
+      autostart.set(!enabled);
+      setInline(err.message, 'error', autostartMsg);
+    } finally {
+      autostart.input.disabled = false;
     }
   }
 

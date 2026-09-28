@@ -32,7 +32,12 @@ Wymagany Python 3.11+.
 py -m pip install -r requirements.txt
 ```
 
-Uruchomienie: dwuklik w `jarvis.bat` albo `py -m jarvis`.
+Uruchomienie: dwuklik w `jarvis.bat` (albo `jarvis.pyw`) – Jarvis startuje w tle, bez okna konsoli;
+logi są w `data/jarvis.log`. Z logami na ekranie: `py -m jarvis` w terminalu.
+
+Żeby Jarvis włączał się razem z Windowsem, zaznacz **Ustawienia → Interfejs → Uruchamiaj razem
+z Windowsem** (wpis widać też w Menedżerze zadań → Aplikacje autostartu). Ponowne uruchomienie, gdy
+Jarvis już działa, tylko przywołuje jego okno – nie startuje drugiej kopii.
 
 ### Raspberry Pi 4/5 (Raspberry Pi OS 64-bit)
 

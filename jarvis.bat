@@ -1,5 +1,5 @@
 @echo off
-rem Uruchamia Jarvisa z katalogu, w którym leży ten plik (dodatkowe argumenty, np. --browser, są przekazywane dalej)
-cd /d "%~dp0"
-py -m jarvis %*
-if errorlevel 1 pause
+rem Uruchamia Jarvisa w tle, bez okna konsoli (jarvis.pyw przez pythonw) i od razu się zamyka.
+rem Dodatkowe argumenty (np. --browser) są przekazywane dalej. Logi: data\jarvis.log.
+rem Z logami na ekranie (np. do szukania błędów): py -m jarvis
+start "" pyw "%~dp0jarvis.pyw" %*

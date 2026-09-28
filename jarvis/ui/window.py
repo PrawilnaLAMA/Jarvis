@@ -34,7 +34,7 @@ def run_window(url: str, bus: EventBus, fullscreen: bool = False, debug: bool = 
         except Exception:
             log.debug("Nie udało się przywołać okna", exc_info=True)
 
-    bus.subscribe(bring_to_front, {"ui.navigate"})
+    bus.subscribe(bring_to_front, {"ui.navigate", "ui.show"})
     try:
         webview.start(debug=debug)
     except Exception:

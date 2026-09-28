@@ -88,6 +88,9 @@ export const api = {
   messengerThreads: () => request('GET', 'api/messenger/threads'),
   messengerWindow: (visible) => request('POST', 'api/messenger/window', { visible }),
 
+  autostart: () => request('GET', 'api/autostart'),
+  setAutostart: (enabled) => request('PUT', 'api/autostart', { enabled }),
+
   settings: () => request('GET', 'api/settings'),
   saveSettings: (patch) => request('PUT', 'api/settings', patch),
   saveSecrets: (secrets) => request('PUT', 'api/secrets', secrets),

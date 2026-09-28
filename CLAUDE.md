@@ -19,6 +19,8 @@ make pi-setup && make pi-run                 # Raspberry Pi 4/5, 64-bit OS
 
 `--no-voice` runs without microphone/TTS (typed commands only), which is the fastest way to exercise the assistant. Logs go to `data/jarvis.log`.
 
+`jarvis.bat` and Windows autostart run `jarvis.pyw` through `pythonw`, so there is no console. Under `pythonw`, `sys.stdout`/`stderr` are `None`: `__main__` swaps in devnull (uvicorn calls `isatty()`), unhandled exceptions go to the log, and a startup failure shows a message box. Console subprocesses need `CREATE_NO_WINDOW` (see `tools/base._run_command`). Only one instance runs: if the UI port is taken by a Jarvis, a second start calls `POST /api/window/show` (bus `ui.show`, which brings the window to front) and exits. Autostart is the `HKCU\...\Run` value "Jarvis" (`jarvis/autostart.py`). The registry is the source of truth, toggled from Settings → Interfejs via `/api/autostart`, and `refresh()` rewrites a stale path on start. Tests use their own registry key.
+
 ## Architecture
 
 `jarvis/app.py` `JarvisApp` is the composition root. `jarvis/__main__.py` starts uvicorn in a background thread (`web/server.py`) and runs the pywebview window on the main thread (`ui/window.py`). pywebview must own the main thread; if it is missing, the app falls back to a browser.

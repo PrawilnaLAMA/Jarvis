@@ -96,3 +96,23 @@ def test_websocket_hello_command_and_events(client):
     with client.websocket_connect("/ws") as ws:
         history = ws.receive_json()["data"]["history"]
         assert [m["topic"] for m in history][-2:] == ["transcript", "reply"]
+
+
+def test_window_show_for_second_instance(client, app):
+    shown = []
+    app.bus.subscribe(lambda e: shown.append(e.topic), {"ui.show"})
+    assert client.post("/api/window/show").json() == {"shown": True}
+    assert shown == ["ui.show"]
+
+
+def test_autostart_endpoints(client, monkeypatch):
+    from jarvis import autostart
+
+    state = {"enabled": False}  # zamiast prawdziwego rejestru
+    monkeypatch.setattr(autostart, "supported", lambda: True)
+    monkeypatch.setattr(autostart, "is_enabled", lambda: state["enabled"])
+    monkeypatch.setattr(autostart, "set_enabled", lambda enabled: state.update(enabled=enabled))
+    assert client.get("/api/autostart").json() == {"supported": True, "enabled": False}
+    assert client.put("/api/autostart", json={"enabled": True}).json() == {"supported": True, "enabled": True}
+    monkeypatch.setattr(autostart, "supported", lambda: False)
+    assert client.put("/api/autostart", json={"enabled": False}).status_code == 409

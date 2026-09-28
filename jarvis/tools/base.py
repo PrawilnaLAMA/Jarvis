@@ -1,6 +1,7 @@
 """Wspólne typy narzędzi (function calling)."""
 
 import subprocess
+import sys
 import webbrowser
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -29,7 +30,9 @@ def _http_get(url: str) -> str:
 
 
 def _run_command(args: list[str]) -> None:
-    subprocess.run(args, check=True, capture_output=True, timeout=10)
+    # pod pythonw (bez konsoli) program konsolowy mignąłby własnym oknem cmd
+    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+    subprocess.run(args, check=True, capture_output=True, timeout=10, creationflags=flags)
 
 
 @dataclass
