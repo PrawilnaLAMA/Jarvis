@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Zakupy · Domownik{% endblock %}
+
+{% block content %}
+<section class="card">
+  <header class="card__head">
+    <h2>{{ icon('cart') }} Lista zakupów</h2>
+    <span class="counter" id="shopCounter"></span>
+    <button type="button" class="btn btn--soft btn--sm" id="clearDone" hidden>{{ icon('sweep') }} Wyczyść kupione</button>
+  </header>
+
+  <form class="shop-add" id="shopForm" autocomplete="off">
+    <input type="text" id="shopTitle" class="shop-add__title" maxlength="80" required
+           placeholder="Co kupić? np. mleko" aria-label="Co kupić">
+    <input type="text" id="shopQty" class="shop-add__qty" maxlength="24"
+           placeholder="ile?" aria-label="Ile">
+    <button type="submit" class="btn btn--primary">{{ icon('plus') }} Dodaj</button>
+  </form>
+  <p class="hint">
+    Dział podpowiadamy sami na podstawie nazwy — jeśli trafimy źle, zmień go na liście jednym kliknięciem.
+  </p>
+
+  <div id="shopGroups"></div>
+
+  <div class="empty" id="shopEmpty" hidden>
+    <span class="empty__icon">🐕</span>
+    <p><strong>Lista jest pusta.</strong><br>Dopisz, co się skończyło — Atom przypilnuje, żeby nie zniknęło.</p>
+  </div>
+</section>
+
+{# Slownik dzialow dla skryptu - ta sama kolejnosc co na serwerze #}
+<script type="application/json" id="shopCategories">
+  {{ shop_categories | tojson }}
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/shopping.js') }}"></script>
+{% endblock %}

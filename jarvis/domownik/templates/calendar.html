@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Kalendarz · Domownik{% endblock %}
+
+{% block content %}
+<div class="calendar-layout">
+  <section class="card calendar-card">
+    <header class="card__head calendar-head">
+      <div class="calendar-nav">
+        <button type="button" class="btn btn--ghost btn--icon" id="prevMonth" aria-label="Poprzedni miesiąc">{{ icon('chevron-left') }}</button>
+        <h2 id="monthTitle">—</h2>
+        <button type="button" class="btn btn--ghost btn--icon" id="nextMonth" aria-label="Następny miesiąc">{{ icon('chevron-right') }}</button>
+      </div>
+      <div class="calendar-head__right">
+        <span class="counter" id="monthCounter"></span>
+        <button type="button" class="btn btn--soft btn--sm" id="todayBtn">Dziś</button>
+        <button type="button" class="btn btn--soft btn--sm" id="grafikBtn">{{ icon('file') }} Grafik</button>
+      </div>
+    </header>
+
+    <ul class="debts" id="monthDebts" hidden></ul>
+
+    <div class="cal-weekdays" id="calWeekdays"></div>
+    <div class="cal-grid" id="calGrid"></div>
+
+    <p class="hint hint--center">Kliknij dzień, żeby zobaczyć szczegóły. Podwójne kliknięcie dodaje obowiązek na ten dzień.</p>
+  </section>
+
+  <aside class="card day-panel" id="dayPanel">
+    <header class="card__head">
+      <div>
+        <p class="eyebrow" id="panelWeekday">&nbsp;</p>
+        <h2 id="panelDate">Wybierz dzień</h2>
+      </div>
+      <span class="counter" id="panelCounter"></span>
+    </header>
+
+    <ul class="shifts" id="panelShifts" hidden></ul>
+
+    <ul class="task-list" id="panelList"></ul>
+
+    <div class="empty empty--sm" id="panelEmpty" hidden>
+      <span class="empty__icon">🐕</span>
+      <p>Wolny dzień! Nic nie zaplanowane.</p>
+    </div>
+
+    <button type="button" class="btn btn--primary btn--block" id="panelAdd">
+      {{ icon('plus') }} Dodaj obowiązek na ten dzień
+    </button>
+  </aside>
+</div>
+
+{# ------------------------------------------------- okno wczytywania grafiku #}
+<div class="modal" id="grafikModal" hidden>
+  <div class="modal__backdrop" data-close-grafik></div>
+  <div class="modal__box modal__box--narrow" role="dialog" aria-modal="true" aria-labelledby="grafikTitle">
+    <header class="modal__head">
+      <h2 id="grafikTitle">{{ icon('file') }} Grafik pracy</h2>
+      <button type="button" class="btn btn--ghost btn--icon" data-close-grafik aria-label="Zamknij">{{ icon('close') }}</button>
+    </header>
+
+    <div class="modal__body">
+      <div class="drop" id="grafikDrop">
+        <span class="drop__icon" aria-hidden="true">{{ icon('file') }}</span>
+        <p class="drop__lead">Przeciągnij tu grafik ze sklepu</p>
+        <p class="hint">
+          PDF albo Excel (.xlsx) — dokładnie ten plik, który przychodzi na cały miesiąc.
+          Możesz go też wkleić skrótem <kbd>Ctrl</kbd>+<kbd>V</kbd>.
+          Kolumna Natalii wczyta się sama.
+        </p>
+        <button type="button" class="btn btn--soft btn--sm" id="grafikPick">Wybierz plik</button>
+        <input type="file" id="grafikFile" accept=".pdf,.xlsx" hidden>
+      </div>
+
+      <p class="form__error" id="grafikError" hidden></p>
+
+      <div id="grafikPreview" hidden>
+        <p class="field__label" id="grafikPreviewLead">Kogo wczytać?</p>
+        <ul class="grafik-people" id="grafikPeople"></ul>
+        <p class="hint">
+          Nie znalazłem w pliku kolumny podpisanej jej imieniem. Zapisze się tylko ta,
+          którą wskażesz — reszta nigdzie nie trafia.
+        </p>
+      </div>
+
+      <div id="grafikLoaded"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/grafik.js') }}"></script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+{% endblock %}

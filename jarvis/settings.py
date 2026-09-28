@@ -80,9 +80,17 @@ class VoiceSettings:
 
 @dataclass
 class DomownikSettings:
-    # serwer aplikacji Domownik (obowiązki domowe, zakupy, grafik) – kalendarz Jarvisa;
-    # po przeniesieniu na Raspberry Pi np. http://domownik.local:8080 albo adres Tailscale
-    url: str = "http://127.0.0.1:8080"
+    # Domownik (obowiązki domowe, zakupy, grafik) działa w Jarvisie na własnym porcie; przy lan=True
+    # telefony wchodzą na http://<ip-komputera>:port. serve=False = Domownik z innego komputera
+    # (np. Jarvisa na Raspberry Pi) pod adresem url – dwa serwery to dwa rozjeżdżające się zestawy danych.
+    serve: bool = True
+    lan: bool = True
+    port: int = 8080
+    url: str = ""
+
+    @property
+    def base_url(self) -> str:
+        return f"http://127.0.0.1:{self.port}" if self.serve else self.url.strip().rstrip("/")
 
 
 @dataclass
@@ -208,8 +216,12 @@ def validate(settings: Settings) -> list[str]:
         errors.append("Wysokość głosu musi być między -30 a +30 Hz.")
     if not 0 <= v.volume <= 1.5:
         errors.append("Głośność musi być między 0 a 1,5.")
-    if not re.fullmatch(r"https?://[^\s/]+(:\d+)?(/\S*)?", settings.domownik.url.strip()):
-        errors.append("Adres Domownika musi zaczynać się od http:// lub https://, np. http://127.0.0.1:8080.")
+    d = settings.domownik
+    if not 1024 <= d.port <= 65535:
+        errors.append("Port Domownika musi być między 1024 a 65535.")
+    if (d.url.strip() or not d.serve) and not re.fullmatch(r"https?://[^\s/]+(:\d+)?(/\S*)?", d.url.strip()):
+        errors.append("Adres innego serwera Domownika musi zaczynać się od http:// lub https://, "
+                      "np. http://domownik.local:8080.")
     if not 1 <= settings.discord.poll_seconds <= 300:
         errors.append("Odświeżanie Discorda musi być między 1 a 300 s.")
     if not 1 <= settings.messenger.poll_seconds <= 300:

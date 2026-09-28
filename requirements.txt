@@ -11,3 +11,6 @@ onnxruntime>=1.16
 requests>=2.31
 python-dotenv>=1.0
 playwright>=1.49  # Messenger (steruje messenger.com w Chrome, Edge albo Chromium)
+flask>=3.0  # Domownik (obowiązki, zakupy, grafik) – własny serwer dla telefonów w sieci domowej
+waitress>=3.0
+pypdf>=5.0  # grafik pracy z PDF-a

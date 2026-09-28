@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Domownik{% endblock %}</title>
+  {# w zakładce Dom Jarvisa (ramka) chowamy logo i stopkę – przed pierwszym malowaniem, bez mignięcia #}
+  <script>if (window.self !== window.top) document.documentElement.classList.add('is-embedded');</script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icon/icon-192.png') }}">
+
+  {# --- instalacja na ekranie głównym telefonu --- #}
+  <link rel="manifest" href="{{ url_for('dom.pwa_manifest') }}">
+  <meta name="theme-color" content="#05070d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Domownik">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon/apple-touch-icon.png') }}">
+</head>
+<body data-page="{{ page }}">
+  {% include "_ikony.html" %}
+
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('dom.page_home') }}">
+      <svg class="brand__mark" aria-hidden="true" focusable="false"><use href="#i-home"/></svg>
+      <span class="brand__text">
+        <strong>Domownik</strong>
+        <small>obowiązki pod kontrolą</small>
+      </span>
+    </a>
+
+    <nav class="tabs" aria-label="Nawigacja główna">
+      <a href="{{ url_for('dom.page_home') }}" class="tab {{ 'is-active' if page == 'home' }}">
+        {{ icon('sun') }} Dziś
+      </a>
+      <a href="{{ url_for('dom.page_calendar') }}" class="tab {{ 'is-active' if page == 'calendar' }}">
+        {{ icon('calendar') }} Kalendarz
+      </a>
+      <a href="{{ url_for('dom.page_shopping') }}" class="tab {{ 'is-active' if page == 'shopping' }}">
+        {{ icon('cart') }} Zakupy
+      </a>
+      <a href="{{ url_for('dom.page_chores') }}" class="tab {{ 'is-active' if page == 'chores' }}">
+        {{ icon('list') }} Obowiązki
+      </a>
+    </nav>
+
+    <div class="topbar__actions">
+      <button type="button" class="btn btn--primary" data-new-chore aria-label="Nowy obowiązek">
+        {{ icon('plus') }} <span class="btn__label">Nowy obowiązek</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="page">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <span>🐾 Domownik działa w Jarvisie — dane leżą w <code>data/domownik/chores.json</code>.</span>
+  </footer>
+
+  {# ---------------------------------------------------- modal obowiązku -- #}
+  <div class="modal" id="choreModal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="modal__head">
+        <h2 id="modalTitle">Nowy obowiązek</h2>
+        <button type="button" class="btn btn--ghost btn--icon" data-close-modal aria-label="Zamknij">{{ icon('close') }}</button>
+      </header>
+
+      <form id="choreForm" class="form" novalidate>
+       <div class="form__body">
+        <input type="hidden" name="id">
+
+        <label class="field">
+          <span class="field__label">Co trzeba zrobić?</span>
+          <input type="text" name="title" maxlength="120" required autocomplete="off"
+                 placeholder="np. Wynieść śmieci">
+        </label>
+
+        <div class="field">
+          <span class="field__label">Kategoria</span>
+          <div class="chips" id="categoryChips">
+            {% for key, cat in categories.items() %}
+              <label class="chip" style="--chip:{{ cat.color }}">
+                <input type="radio" name="category" value="{{ key }}" {{ 'checked' if key == 'inne' }}>
+                <span>{{ cat.icon }} {{ cat.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Kto to robi?</span>
+          <div class="chips" id="assigneeChips">
+            <label class="chip" style="--chip:#8fa3b8">
+              <input type="checkbox" name="wspolne" value="1" checked>
+              <span>🤝 Wspólne</span>
+            </label>
+            {% for key, person in people.items() %}
+              <label class="chip" style="--chip:{{ person.color }}">
+                <input type="checkbox" name="assignees" value="{{ key }}">
+                <span>{{ person.initial }} {{ person.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <p class="hint" id="assigneeHint" hidden>
+            🔁 Dwie osoby — obowiązek chodzi na zmianę, a Domownik pilnuje grafiku i tego,
+            żeby na dłuższą metę wyszło po równo.
+          </p>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field__label">Ważność</span>
+            <select name="priority">
+              <option value="niski">🌿 Niski — jak będzie czas</option>
+              <option value="normalny" selected>🔵 Normalny</option>
+              <option value="wysoki">🔥 Ważne — nie zapomnij</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Zaczyna się od</span>
+            <input type="date" name="start_date" required>
+          </label>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Jak często?</span>
+          <div class="segmented" id="repeatTypes">
+            <label><input type="radio" name="repeat_type" value="brak" checked><span>Raz</span></label>
+            <label><input type="radio" name="repeat_type" value="codziennie"><span>Codziennie</span></label>
+            <label><input type="radio" name="repeat_type" value="co_x_dni"><span>Co X dni</span></label>
+            <label><input type="radio" name="repeat_type" value="tygodniowo"><span>Dni tygodnia</span></label>
+            <label><input type="radio" name="repeat_type" value="miesiecznie"><span>Co miesiąc</span></label>
+          </div>
+        </div>
+
+        <div class="repeat-detail" data-repeat="co_x_dni" hidden>
+          <label class="field field--inline">
+            <span class="field__label">Powtarzaj co</span>
+            <input type="number" name="interval" min="1" max="365" value="2" class="input--num">
+            <span class="field__suffix">dni</span>
+          </label>
+          <p class="hint">Licząc od daty startu — np. co 3 dni, licząc od dziś.</p>
+        </div>
+
+        <div class="repeat-detail" data-repeat="tygodniowo" hidden>
+          <span class="field__label">W które dni?</span>
+          <div class="weekdays" id="weekdayPicker">
+            {% for short in ['pon','wt','śr','czw','pt','sob','ndz'] %}
+              <label class="weekday">
+                <input type="checkbox" name="weekdays" value="{{ loop.index0 }}">
+                <span>{{ short }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="repeat-detail" data-repeat="miesiecznie" hidden>
+          <label class="field field--inline">
+            <span class="field__label">Dnia</span>
+            <input type="number" name="day_of_month" min="1" max="31" value="1" class="input--num">
+            <span class="field__suffix">każdego miesiąca</span>
+          </label>
+          <p class="hint">Jeśli miesiąc jest krótszy (np. luty), obowiązek wypadnie ostatniego dnia.</p>
+        </div>
+
+        <details class="more">
+          <summary>Więcej opcji</summary>
+          <div class="more__body">
+            <label class="field">
+              <span class="field__label">Notatka</span>
+              <textarea name="notes" rows="2" maxlength="500"
+                        placeholder="np. worki są w szafce pod zlewem"></textarea>
+            </label>
+            <label class="field">
+              <span class="field__label">Powtarzaj do dnia (opcjonalnie)</span>
+              <input type="date" name="end_date">
+            </label>
+            <label class="switch">
+              <input type="checkbox" name="archived">
+              <span>Wstrzymany — nie pokazuj w planie</span>
+            </label>
+          </div>
+        </details>
+
+        <p class="form__error" id="formError" hidden></p>
+       </div>
+
+        <footer class="modal__foot">
+          <button type="button" class="btn btn--danger-ghost" id="deleteChore" hidden>Usuń</button>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn--ghost" data-close-modal>Anuluj</button>
+          <button type="submit" class="btn btn--primary">Zapisz</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

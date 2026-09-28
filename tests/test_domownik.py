@@ -8,7 +8,7 @@ from jarvis.services.domownik_client import DomownikClient, DomownikError
 from jarvis.settings import SettingsStore
 from jarvis.tools import ToolContext
 from jarvis.tools.base import ToolError
-from jarvis.tools.domownik import _best_matches, chore_done, house_agenda, shopping_list, shopping_update
+from jarvis.tools.domownik import _best_matches, chore_done, house_agenda, open_domownik, shopping_list, shopping_update
 
 NOW = datetime(2025, 11, 3, 12, 0)  # poniedziałek
 
@@ -131,3 +131,10 @@ def test_shopping_add_bought_remove_and_clear(ctx):
     assert shopping_list(ctx, {}) == "Lista zakupów jest pusta."
     with pytest.raises(ToolError):
         shopping_update(ctx, {"action": "add", "items": []})
+
+
+def test_open_domownik_opens_page(ctx, recorder):
+    assert open_domownik(ctx, {"page": "zakupy"}) == "Otwieram listę zakupów."
+    assert open_domownik(ctx, {}) == "Otwieram kalendarz."
+    navigations = [e.data for e in recorder.events if e.topic == "ui.navigate"]
+    assert navigations == [{"view": "dom", "path": "/zakupy"}, {"view": "dom", "path": "/kalendarz"}]

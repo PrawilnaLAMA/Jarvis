@@ -12,10 +12,10 @@ Działa na Windows i Raspberry Pi 4/5 (64-bit) z ekranem.
 - **Discord i Messenger** – „napisz do Piotrka i Natana, że spóźnię się 10 minut”, „napisz Natalii na
   Messengerze, że kupię mleko” (wiadomość wychodzi z Twojego konta); czyta na głos nowe wiadomości od
   kontaktów, a „odpisz jej, że OK” trafia do osoby, która napisała ostatnia, tym samym komunikatorem.
-- **Kalendarz (Domownik)** – obowiązki domowe, lista zakupów i grafik pracy Natalii z aplikacji
-  Domownik (repozytorium HouseholdChoresApp): „co mam dziś do zrobienia?”, „zrobiłem pranie”, „dodaj trening w każdą
-  środę o 18”, „dodaj do zakupów mleko i chleb”, „kupiłem mleko”, „czy Natalia jutro pracuje?”,
-  „otwórz kalendarz”. Zakładka **Kalendarz** pokazuje Domownika.
+- **Dom (Domownik)** – obowiązki domowe, kalendarz, lista zakupów i grafik pracy Natalii, wbudowane
+  w Jarvisa: „co mam dziś do zrobienia?”, „zrobiłem pranie”, „dodaj trening w każdą środę o 18”,
+  „dodaj do zakupów mleko i chleb”, „kupiłem mleko”, „czy Natalia jutro pracuje?”, „otwórz listę
+  zakupów”. Zakładka **Dom** pokazuje całego Domownika, a telefony wchodzą na niego przez przeglądarkę.
 - **YouTube i Google** – „puść Bohemian Rhapsody”, „wyszukaj pogodę we Wrocławiu”.
 - **Wyłączanie komputera** – z 30-sekundowym opóźnieniem („anuluj wyłączenie” przerywa).
 - **Cisza** – „stop”, „dobra, wystarczy” – Jarvis nic nie odpowiada.
@@ -42,6 +42,13 @@ make pi-run     # Jarvis na pełnym ekranie
 ```
 
 Przy pierwszym uruchomieniu pobierane są modele wykrywania „Hey Jarvis” (kilka MB, do `data/models`).
+
+Ustaw strefę czasową – Domownik liczy dni według `date.today()`, więc na czasie UTC obowiązki
+zmieniałyby się o 2:00 w nocy:
+
+```bash
+sudo timedatectl set-timezone Europe/Warsaw
+```
 
 ## Konfiguracja
 
@@ -73,15 +80,27 @@ otworzy, a potem możesz je schować. Link do czatu kontaktu skopiuj z paska adr
 - To automatyzacja konta niezgodna z regulaminem Meta – ryzyko blokady konta jest małe, ale istnieje.
 
 Pozostałe ustawienia (głos, tempo mowy, czułość „Hey Jarvis”, tryb przerywania, urządzenia audio,
-adres Domownika) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.
+Domownik) też są w zakładce **Ustawienia** i zapisują się w `data/settings.json`.
 
-### Domownik
+### Domownik (zakładka Dom)
 
-Kalendarzem jest osobna aplikacja Domownik – Jarvis rozmawia z jej serwerem przez HTTP, więc serwer
-musi być uruchomiony (`start-serwer.bat` w katalogu Domownika). Domyślny adres to
-`http://127.0.0.1:8080`; po przeniesieniu Domownika na Raspberry Pi wpisz jego adres w
-**Ustawienia → Domownik** (np. `http://domownik.local:8080`). Domownik nie zna godzin, więc godzina
-trafia do nazwy („Trening 18:00”), a przypomnień o wydarzeniach nie ma.
+Domownik – obowiązki, kalendarz, zakupy i grafik – działa razem z Jarvisem, na własnym porcie
+(domyślnie 8080). Osobnego serwera (`start-serwer.bat` ze starego repozytorium HouseholdChoresApp) już
+nie uruchamiaj – zająłby port, a jego dane rozjechałyby się z danymi Jarvisa.
+
+- **Telefony:** w tej samej sieci Wi-Fi otwórz adres z **Ustawienia → Domownik** (np.
+  `http://192.168.1.20:8080`) i dodaj stronę do ekranu głównego. Za pierwszym razem Windows zapyta o
+  zgodę zapory – zezwól w sieci prywatnej. Domownik działa, dopóki działa Jarvis.
+- **Poza domem:** zainstaluj [Tailscale](https://tailscale.com) na komputerze z Jarvisem i na telefonach
+  (to samo konto), a na komputerze z Jarvisem uruchom `tailscale serve --bg 8080`. Dostajesz stały adres
+  z HTTPS (np. `https://jarvis.twoj-tailnet.ts.net`), widoczny tylko dla Twoich urządzeń – dzięki HTTPS
+  Android zaproponuje też instalację aplikacji.
+- **Dane:** `data/domownik/chores.json`, a codzienne kopie (ostatnie 14) w `data/domownik/kopie/`.
+  Kopię całości pobierzesz w zakładce **Obowiązki → Pobierz kopię (JSON)**; tam też można ją wczytać.
+- **Dwa Jarvisy** (np. na komputerze i na Raspberry Pi): serwer Domownika ma działać tylko w jednym.
+  W drugim wyłącz „Uruchamiaj Domownika w Jarvisie” i wpisz adres pierwszego (np.
+  `http://raspberrypi.local:8080`).
+- Domownik nie zna godzin, więc godzina trafia do nazwy („Trening 18:00”), a przypomnień nie ma.
 
 ### Limity darmowego planu Groq
 

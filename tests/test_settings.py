@@ -91,12 +91,18 @@ def test_secrets_roundtrip_and_legacy_token(tmp_path, monkeypatch):
         secrets.set("PATH", "x")
 
 
-def test_domownik_url_validation(tmp_path):
+def test_domownik_settings(tmp_path):
     store = SettingsStore(tmp_path / "settings.json")
-    assert store.get().domownik.url == "http://127.0.0.1:8080"
-    assert store.update({"domownik": {"url": "http://domownik.local:8080/"}}).domownik.url == "http://domownik.local:8080/"
+    assert store.get().domownik.base_url == "http://127.0.0.1:8080"  # wbudowany serwer
+    assert store.update({"domownik": {"port": 8090}}).domownik.base_url == "http://127.0.0.1:8090"
+    external = store.update({"domownik": {"serve": False, "url": "http://raspberrypi.local:8080/"}}).domownik
+    assert external.base_url == "http://raspberrypi.local:8080"
     with pytest.raises(SettingsError):
-        store.update({"domownik": {"url": "domownik.local"}})
+        store.update({"domownik": {"url": "raspberrypi.local"}})
+    with pytest.raises(SettingsError):  # bez własnego serwera adres jest obowiązkowy
+        store.update({"domownik": {"url": ""}})
+    with pytest.raises(SettingsError):
+        store.update({"domownik": {"serve": True, "port": 80}})
 
 
 def test_migration_copies_conversation_once(tmp_path):

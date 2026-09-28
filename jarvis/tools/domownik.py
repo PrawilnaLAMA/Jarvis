@@ -222,9 +222,19 @@ def chore_info(ctx: ToolContext, args: dict[str, Any]) -> str:
             f"zrobione {c.get('done_count', 0)} razy.")
 
 
-def open_calendar(ctx: ToolContext, args: dict[str, Any]) -> str:
-    ctx.bus.publish("ui.navigate", view="calendar")
-    return "Otwieram kalendarz."
+# strona Domownika: (ścieżka, odpowiedź)
+PAGES = {
+    "dzis": ("/", "Otwieram plan dnia."),
+    "kalendarz": ("/kalendarz", "Otwieram kalendarz."),
+    "zakupy": ("/zakupy", "Otwieram listę zakupów."),
+    "obowiazki": ("/obowiazki", "Otwieram listę obowiązków."),
+}
+
+
+def open_domownik(ctx: ToolContext, args: dict[str, Any]) -> str:
+    path, reply = PAGES.get(args.get("page") or "kalendarz", PAGES["kalendarz"])
+    ctx.bus.publish("ui.navigate", view="dom", path=path)
+    return reply
 
 
 # --- zakupy ---
@@ -322,7 +332,12 @@ def tools() -> list[Tool]:
             chore_info,
             speak_directly=False,
         ),
-        Tool("open_calendar", "Pokazuje kalendarz na ekranie.", params(), open_calendar),
+        Tool(
+            "open_domownik",
+            "Otwiera Domownika na ekranie („otwórz”, „pokaż na ekranie”): plan dnia, kalendarz, zakupy, obowiązki.",
+            params({"page": {"type": "string", "enum": list(PAGES)}}),
+            open_domownik,
+        ),
         Tool("shopping_list", "Czyta listę zakupów.", params(), shopping_list, speak_directly=False),
         Tool(
             "shopping_update",

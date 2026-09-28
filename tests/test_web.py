@@ -43,10 +43,16 @@ def test_command_returns_reply(client):
 
 def test_domownik_status(client, app, domownik):
     app.domownik = domownik  # bez sieci – prawdziwy Domownik może akurat działać na tym komputerze
-    assert client.get("/api/domownik/status").json() == {"url": "http://domownik.test", "ok": True, "error": None}
+    # wbudowany serwer nie wystartował (app.start() nie było) – nie ufamy temu, co odpowiada na porcie
+    status = client.get("/api/domownik/status").json()
+    assert status["ok"] is False and status["serve"] is True and "uruchamia" in status["error"]
+    assert app.status()["domownik"]["url"] == "http://127.0.0.1:8080"
+
+    app.settings.update({"domownik": {"serve": False, "url": "http://domownik.test"}})
+    status = client.get("/api/domownik/status").json()
+    assert status["ok"] is True and status["url"] == "http://domownik.test" and status["error"] is None
     domownik.error = DomownikError("Domownik nie odpowiada.")
-    assert client.get("/api/domownik/status").json()["ok"] is False
-    assert app.status()["domownik_url"] == "http://127.0.0.1:8080"
+    assert client.get("/api/domownik/status").json() == {**status, "ok": False, "error": "Domownik nie odpowiada."}
 
 
 def test_messenger_endpoints_when_disabled(client):

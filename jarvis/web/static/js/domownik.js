@@ -1,10 +1,11 @@
-// Zakładka „Kalendarz”: aplikacja Domownik (obowiązki, zakupy, grafik) osadzona w ramce z jej serwera.
+// Zakładka „Dom”: Domownik (obowiązki, kalendarz, zakupy, grafik) w ramce z wbudowanego serwera Jarvisa.
 // Domownik sam odświeża się na żywo – także po zmianach zrobionych głosem przez Jarvisa – więc ramki
-// nie przeładowujemy przy każdym wejściu; wczytujemy ją od nowa tylko po zmianie adresu lub awarii serwera.
+// nie przeładowujemy przy każdym wejściu; wczytujemy ją od nowa tylko po zmianie adresu, awarii serwera
+// albo gdy Jarvis otwiera konkretną podstronę („pokaż listę zakupów”).
 
 import { $, h, appendChildren, clear } from './dom.js';
 
-const START_PAGE = '/kalendarz';
+const START_PAGE = '/';
 const RETRY_MS = 5000;
 
 export function initDomownik({ api, socket, navigate }) {
@@ -14,13 +15,16 @@ export function initDomownik({ api, socket, navigate }) {
   let visible = false;
   let checking = false;
   let loadedUrl = ''; // adres serwera, z którego wczytano ramkę
+  let pendingPath = ''; // podstrona do otwarcia przy najbliższym pokazaniu ramki
   let timer = 0;
 
   $('#dom-retry').addEventListener('click', check);
   $('#dom-settings').addEventListener('click', () => navigate('settings'));
-  socket.on('settings.changed', () => {
-    if (visible) check(); // mógł się zmienić adres Domownika
-  });
+  const recheck = () => {
+    if (visible) check(); // mógł się zmienić port albo serwer właśnie wstał
+  };
+  socket.on('settings.changed', recheck);
+  socket.on('domownik.status', recheck);
 
   return {
     onShow() {
@@ -30,6 +34,9 @@ export function initDomownik({ api, socket, navigate }) {
     onHide() {
       visible = false;
       clearTimeout(timer);
+    },
+    open(path) {
+      pendingPath = path;
     },
   };
 
@@ -50,25 +57,29 @@ export function initDomownik({ api, socket, navigate }) {
   }
 
   function showFrame(url) {
-    if (url !== loadedUrl) {
-      frame.src = `${url}${START_PAGE}`;
+    if (url !== loadedUrl || pendingPath) {
+      frame.src = `${url}${pendingPath || START_PAGE}`;
       loadedUrl = url;
+      pendingPath = '';
     }
     offline.hidden = true;
     frame.hidden = false;
   }
 
-  function showOffline({ url, error }) {
+  function showOffline({ url, error, serve }) {
     // w ramce zostałaby strona błędu przeglądarki – po powrocie serwera wczytamy ją od nowa
     if (loadedUrl) frame.src = 'about:blank';
     loadedUrl = '';
     frame.hidden = true;
+    const hint = serve
+      ? 'Wbudowany serwer Domownika nie działa. '
+      : 'Domownik działa na innym komputerze – sprawdź, czy jest włączony, albo popraw adres w ustawieniach. ';
     appendChildren(clear(text), [
-      'Uruchom serwer Domownika (start-serwer.bat) albo popraw jego adres w ustawieniach. ',
+      hint,
       'Sprawdzam ponownie co kilka sekund.',
       url || error ? h('br') : null,
-      url ? h('code', null, url) : null,
-      url && error ? ' — ' : null,
+      url && !serve ? h('code', null, url) : null,
+      url && !serve && error ? ' — ' : null,
       error,
     ]);
     offline.hidden = false;

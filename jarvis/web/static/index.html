@@ -49,7 +49,7 @@
 
     <nav class="nav" aria-label="Widoki">
       <a class="nav-link" href="#jarvis" data-view="jarvis">Jarvis</a>
-      <a class="nav-link" href="#calendar" data-view="calendar">Kalendarz</a>
+      <a class="nav-link" href="#dom" data-view="dom">Dom</a>
       <a class="nav-link" href="#settings" data-view="settings">Ustawienia<span class="nav-dot" id="nav-settings-dot" title="Niezapisane zmiany" hidden></span></a>
     </nav>
 
@@ -139,9 +139,9 @@
       </aside>
     </section>
 
-    <!-- Kalendarz = aplikacja Domownik (obowiązki, zakupy, grafik) osadzona z jej serwera; js/domownik.js -->
-    <section class="view view-calendar" id="view-calendar" data-view="calendar" aria-label="Kalendarz" hidden>
-      <iframe class="dom-frame" id="dom-frame" title="Domownik – kalendarz, zakupy i obowiązki" hidden></iframe>
+    <!-- Dom = Domownik (obowiązki, kalendarz, zakupy, grafik) z wbudowanego serwera; js/domownik.js -->
+    <section class="view view-dom" id="view-dom" data-view="dom" aria-label="Dom" hidden>
+      <iframe class="dom-frame" id="dom-frame" title="Domownik – obowiązki, kalendarz i zakupy" hidden></iframe>
       <div class="dom-offline" id="dom-offline" role="status" hidden>
         <h1 class="dom-offline-title">Domownik nie odpowiada</h1>
         <p class="dom-offline-text" id="dom-offline-text"></p>
@@ -150,7 +150,7 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-refresh"/></svg>
             Spróbuj ponownie
           </button>
-          <button type="button" class="btn btn-ghost" id="dom-settings">Zmień adres w ustawieniach</button>
+          <button type="button" class="btn btn-ghost" id="dom-settings">Ustawienia Domownika</button>
         </div>
       </div>
     </section>

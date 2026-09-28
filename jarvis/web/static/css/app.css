@@ -1573,9 +1573,9 @@ input[type="time"].input {
   }
 }
 
-/* ============ Kalendarz (Domownik) ============ */
+/* ============ Dom (Domownik) ============ */
 
-.view-calendar {
+.view-dom {
   display: flex;
   background: var(--bg);
 }

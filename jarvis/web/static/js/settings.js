@@ -68,11 +68,12 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   previewBtn.addEventListener('click', preview);
 
   const domownikUrl = textField({
-    label: 'Adres serwera',
-    hint: 'Na tym komputerze: http://127.0.0.1:8080. Po przeniesieniu na Raspberry Pi – jego adres w sieci, np. http://domownik.local:8080.',
-    placeholder: 'http://127.0.0.1:8080',
+    label: 'Adres innego serwera Domownika',
+    hint: 'Tylko przy wyłączonym serwerze w Jarvisie – np. Jarvis na Raspberry Pi: http://raspberrypi.local:8080.',
+    placeholder: 'http://raspberrypi.local:8080',
   });
   const domownikMsg = h('span', { class: 'inline-msg', role: 'status' });
+  let domownikKey = '';
 
   const messengerMsg = h('span', { class: 'inline-msg', role: 'status' });
   const messengerShow = h('button', { type: 'button', class: 'btn' }, icon('eye'), 'Pokaż okno');
@@ -156,7 +157,10 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       inF('output_device', outputDevice),
     ),
     card(
-      'domownik', 'Domownik', { section: 'domownik', desc: 'Kalendarz Jarvisa: obowiązki domowe, lista zakupów i grafik Natalii. Jarvis łączy się z serwerem Domownika, który musi być uruchomiony.' },
+      'domownik', 'Domownik', { section: 'domownik', desc: 'Zakładka Dom: obowiązki domowe, kalendarz, lista zakupów i grafik Natalii. Domownik działa razem z Jarvisem, a telefony wchodzą na niego przez przeglądarkę (można go dodać do ekranu głównego).' },
+      domF('serve', toggleField({ label: 'Uruchamiaj Domownika w Jarvisie', hint: 'Wyłącz tylko wtedy, gdy Domownik działa na innym komputerze – podaj wtedy jego adres niżej. Dwa serwery to dwa osobne zestawy danych.' })),
+      domF('lan', toggleField({ label: 'Dostęp z telefonów w sieci domowej', hint: 'Za pierwszym razem Windows zapyta o zgodę zapory – zezwól w sieci prywatnej.' })),
+      domF('port', numberField({ label: 'Port', hint: 'Od 1024 do 65535, domyślnie 8080.', min: 1024, max: 65535, integer: true })),
       domF('url', domownikUrl),
       h('div', { class: 'field field-inline' }, domownikBtn, domownikMsg),
     ),
@@ -227,6 +231,8 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   renderPills(store.get());
   store.subscribe(renderMessenger);
   renderMessenger(store.get());
+  store.subscribe(renderDomownik);
+  renderDomownik(store.get());
 
   return {
     onShow() {
@@ -585,17 +591,37 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     }
   }
 
-  /** Sprawdza zapisany adres – przy niezapisanej zmianie adresu najpierw prosi o zapis. */
+  function renderDomownik(s) {
+    const d = s.status && s.status.domownik;
+    const key = JSON.stringify(d || null);
+    if (!d || key === domownikKey) return;
+    domownikKey = key;
+    showDomownik(d, d.state === 'running' || !d.serve);
+  }
+
+  function showDomownik(d, ok) {
+    if (!d.serve) {
+      setInline(ok ? `Korzystam z Domownika pod adresem ${d.url}.` : d.error || 'Domownik nie odpowiada.', ok ? 'ok' : 'error', domownikMsg);
+    } else if (d.state === 'running') {
+      setInline(d.lan_url ? `Działa. Na telefonie otwórz ${d.lan_url}` : 'Działa – tylko na tym komputerze.', 'ok', domownikMsg);
+    } else if (d.state === 'error') {
+      setInline(d.error, 'error', domownikMsg);
+    } else {
+      setInline('Domownik się uruchamia…', '', domownikMsg);
+    }
+  }
+
+  /** Sprawdza zapisane ustawienia – przy niezapisanej zmianie najpierw prosi o zapis. */
   async function checkDomownik() {
     if (computeDirty().has('domownik')) {
-      setInline('Najpierw zapisz nowy adres.', 'error', domownikMsg);
+      setInline('Najpierw zapisz zmiany.', 'error', domownikMsg);
       return;
     }
     domownikBtn.disabled = true;
     setInline('Sprawdzam…', '', domownikMsg);
     try {
       const res = await api.domownikStatus();
-      if (res && res.ok) setInline('Domownik odpowiada.', 'ok', domownikMsg);
+      if (res && res.ok) showDomownik(res, true);
       else setInline((res && res.error) || 'Domownik nie odpowiada.', 'error', domownikMsg);
     } catch (err) {
       setInline(`Nie udało się sprawdzić: ${err.message}`, 'error', domownikMsg);
@@ -610,7 +636,8 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
     const st = s.status;
     const voice = voiceInfo(s);
     const messenger = (st && st.messenger) || {};
-    const key = JSON.stringify([s.connected, st && st.version, voice.available, voice.muted, voice.error, st && st.llm_configured, st && st.discord_configured, messenger.enabled, messenger.state]);
+    const dom = (st && st.domownik) || {};
+    const key = JSON.stringify([s.connected, st && st.version, voice.available, voice.muted, voice.error, st && st.llm_configured, st && st.discord_configured, messenger.enabled, messenger.state, dom.serve, dom.state, dom.error]);
     if (key === pillsKey) return;
     pillsKey = key;
     const items = [];
@@ -621,6 +648,11 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       else items.push(pill('ok', 'Głos działa'));
       items.push(st.llm_configured ? pill('ok', 'Model językowy gotowy') : pill('bad', 'Brak klucza Groq'));
       items.push(st.discord_configured ? pill('ok', 'Discord skonfigurowany') : pill('warn', 'Discord nieskonfigurowany'));
+      if (dom.serve) {
+        if (dom.state === 'running') items.push(pill('ok', 'Domownik działa'));
+        else if (dom.state === 'error') items.push(pill('bad', 'Domownik: błąd', dom.error));
+        else items.push(pill('neutral', 'Domownik się uruchamia'));
+      }
       if (messenger.enabled) {
         if (messenger.state === 'ready') items.push(pill('ok', 'Messenger połączony'));
         else if (messenger.state === 'login') items.push(pill('warn', 'Messenger: zaloguj się'));

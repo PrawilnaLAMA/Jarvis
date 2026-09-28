@@ -15,6 +15,7 @@ from jarvis.migration import migrate_legacy_data
 from jarvis.services.discord_client import DiscordClient
 from jarvis.services.discord_monitor import DiscordMonitor
 from jarvis.services.domownik_client import DomownikClient
+from jarvis.services.domownik_server import DomownikServer
 from jarvis.services.inbox import Inbox
 from jarvis.services.messenger import MessengerService
 from jarvis.settings import Secrets, SettingsStore
@@ -41,8 +42,10 @@ class JarvisApp:
             data_dir / "settings.json", on_change=lambda _: self.bus.publish("settings.changed")
         )
         self.tracker = StatusTracker(self.bus)
-        # kalendarzem jest Domownik – adres z ustawień czytany przy każdym zapytaniu (zmiana działa od razu)
-        self.domownik = DomownikClient(lambda: self.settings.get().domownik.url)
+        # Domownik (obowiązki, zakupy, grafik) działa w Jarvisie na własnym porcie; narzędzia rozmawiają z nim
+        # przez HTTP, więc tak samo obsłużą Domownika z innego komputera (adres czytany przy każdym zapytaniu)
+        self.domownik_server = DomownikServer(self.settings, self.bus, data_dir / "domownik" / "chores.json")
+        self.domownik = DomownikClient(lambda: self.settings.get().domownik.base_url)
         self.conversation = Conversation(
             data_dir / "conversation.json", lambda: self.settings.get().llm.history_messages
         )
@@ -77,11 +80,13 @@ class JarvisApp:
             self.tracker.set_listener("idle")
 
         self.discord_monitor = DiscordMonitor(self.discord, self.settings, self.bus, self.inbox)
-        self.bus.subscribe(lambda _: self.publish_status(), {"voice.status", "messenger.status", "settings.changed"})
+        status_topics = {"voice.status", "messenger.status", "domownik.status", "settings.changed"}
+        self.bus.subscribe(lambda _: self.publish_status(), status_topics)
 
     # --- cykl życia ---
 
     def start(self) -> None:
+        self.domownik_server.start()
         if self.voice:
             self.voice.start(self.stop_event)
         threading.Thread(target=self.discord_monitor.run, args=(self.stop_event,), name="discord", daemon=True).start()
@@ -95,6 +100,7 @@ class JarvisApp:
         self.messenger.join(5)  # zamknięcie przeglądarki, żeby nie została w tle
         if self.voice:
             self.voice.close()
+        self.domownik_server.close()
 
     # --- polecenia ---
 
@@ -138,7 +144,7 @@ class JarvisApp:
             "llm_configured": self.llm.configured,
             "discord_configured": self.discord.configured,
             "messenger": self.messenger.status(),
-            "domownik_url": self.settings.get().domownik.url,
+            "domownik": self.domownik_server.status(),
         }
 
     def publish_status(self) -> None:

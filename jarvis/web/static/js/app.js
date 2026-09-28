@@ -12,7 +12,7 @@ import { initChat } from './chat.js';
 import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
 
-const VIEWS = ['jarvis', 'calendar', 'settings'];
+const VIEWS = ['jarvis', 'dom', 'settings'];
 
 const store = createStore({
   connected: false,
@@ -46,7 +46,10 @@ socket.on('status', (data) => {
   if (data.state) patch.serverState = data.state;
   store.set(patch);
 });
-socket.on('ui.navigate', (data) => navigate(data.view));
+socket.on('ui.navigate', (data) => {
+  if (data.path) views[data.view]?.open?.(data.path); // podstrona Domownika, np. /zakupy
+  navigate(data.view);
+});
 
 // --- komponenty ---
 
@@ -61,7 +64,7 @@ const views = {
     onShow: () => orb.setActive(true),
     onHide: () => orb.setActive(false),
   },
-  calendar: initDomownik(ctx),
+  dom: initDomownik(ctx),
   settings: initSettings({
     ...ctx,
     onDirtyChange: (dirty) => {

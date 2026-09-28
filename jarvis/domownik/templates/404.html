@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Nie ma takiej strony · Domownik{% endblock %}
+
+{% block content %}
+<section class="card empty-page">
+  {% set dog_class = 'dog--sleepy' %}
+  {% include "_dog.html" %}
+  <h1>Hau? Tu nic nie ma.</h1>
+  <p class="hint">Atom obwąchał ten adres i nic nie znalazł.</p>
+  <a class="btn btn--primary" href="{{ url_for('dom.page_home') }}">Wróć do planu dnia</a>
+</section>
+{% endblock %}

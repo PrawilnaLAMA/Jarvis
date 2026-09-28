@@ -14,7 +14,8 @@ Tematy (topic) i ich dane:
 - messenger.status {enabled, state: off|starting|login|ready|error, error}
 - notice           {text, level: info|warning|error}
 - settings.changed {}
-- ui.navigate      {view: jarvis|calendar|settings}
+- ui.navigate      {view: jarvis|dom|settings, path?}  – path: podstrona Domownika, np. /zakupy
+- domownik.status  {serve, state: off|starting|running|error, error, url, lan_url}
 """
 
 import logging

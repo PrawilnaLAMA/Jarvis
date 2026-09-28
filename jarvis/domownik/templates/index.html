@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Dziś · Domownik{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero__text">
+    <p class="eyebrow" id="heroDate">&nbsp;</p>
+    <h1 class="hero__title" id="heroGreeting">Cześć!</h1>
+    <p class="hero__sub" id="heroSummary">Ładuję plan dnia…</p>
+
+    <ul class="shifts" id="heroShifts" hidden></ul>
+
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
+      <div class="progress__fill" id="progressFill"></div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat__value" id="statStreak">0</span>
+        <span class="stat__label">dni serii 🔥</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value" id="statWeek">0</span>
+        <span class="stat__label">zrobione w 7 dni</span>
+      </div>
+      <div class="stat">
+        <span class="stat__value" id="statActive">0</span>
+        <span class="stat__label">aktywnych obowiązków</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero__dog">
+    <div class="bubble" id="dogBubble">Hau! Ogarniamy dziś dom?</div>
+    {% include "_dog.html" %}
+    <p class="dog-name">Atom</p>
+  </div>
+</section>
+
+<section class="card card--warn" id="overdueCard" hidden>
+  <header class="card__head">
+    <h2>{{ icon('clock') }} Zaległości</h2>
+    <span class="counter" id="overdueCounter"></span>
+    <button type="button" class="btn btn--ghost btn--sm" id="toggleOverdue">Zwiń</button>
+  </header>
+  <ul class="task-list" id="overdueList"></ul>
+</section>
+
+<section class="card card--today">
+  <header class="card__head">
+    <h2>Na dziś</h2>
+    <span class="counter" id="todayCounter">—</span>
+    <button type="button" class="btn btn--soft btn--sm" data-new-chore>{{ icon('plus') }} Dodaj</button>
+  </header>
+  <ul class="task-list" id="todayList"></ul>
+  <div class="empty" id="todayEmpty" hidden>
+    <span class="empty__icon">🦴</span>
+    <p><strong>Dziś nic nie zaplanowane.</strong><br>Atom proponuje odpoczynek albo nowy obowiązek.</p>
+  </div>
+</section>
+
+<section class="upcoming">
+  <div class="section-head">
+    <h2>Kolejne dni</h2>
+    <a class="link" href="{{ url_for('dom.page_calendar') }}">zobacz cały kalendarz →</a>
+  </div>
+  <div class="upcoming-grid" id="upcomingGrid"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+{% endblock %}

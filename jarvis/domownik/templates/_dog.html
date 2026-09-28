@@ -1,0 +1,55 @@
+{# Maskotka - owczarek niemiecki. Klasy sterują wariantem: dog--sm, dog--happy, dog--sleepy.
+   Atrybut data-dog zostawiony pod przyszłą interaktywność (klikanie, reakcje). #}
+<svg class="dog {{ dog_class|default('') }}" viewBox="0 0 240 230" role="img"
+     aria-label="Atom, piesek maskotka" data-dog="{{ dog_name|default('atom') }}" tabindex="0">
+  <defs>
+    <radialGradient id="dogShade" cx="35%" cy="30%">
+      <stop offset="0%" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <ellipse class="dog-shadow" cx="120" cy="210" rx="76" ry="12"/>
+
+  <g class="dog-tail-wrap">
+    <path class="dog-tail" d="M168 168 C206 166 214 128 196 108 C202 138 186 152 164 152 Z"/>
+  </g>
+
+  <!-- tułów -->
+  <ellipse class="dog-fur" cx="120" cy="164" rx="58" ry="50"/>
+  <path class="dog-black" d="M66 158 Q64 118 120 118 Q176 118 174 158 Q150 136 120 136 Q90 136 66 158 Z"/>
+  <ellipse class="dog-cream" cx="120" cy="180" rx="34" ry="32"/>
+  <ellipse class="dog-fur" cx="86" cy="204" rx="22" ry="13"/>
+  <ellipse class="dog-fur" cx="154" cy="204" rx="22" ry="13"/>
+  <ellipse class="dog-cream" cx="86" cy="206" rx="14" ry="8"/>
+  <ellipse class="dog-cream" cx="154" cy="206" rx="14" ry="8"/>
+
+  <g class="dog-head">
+    <path class="dog-black" d="M78 74 L64 20 L108 52 Z"/>
+    <path class="dog-black" d="M162 74 L176 20 L132 52 Z"/>
+    <path class="dog-ear-inner" d="M84 66 L74 34 L100 54 Z"/>
+    <path class="dog-ear-inner" d="M156 66 L166 34 L140 54 Z"/>
+
+    <ellipse class="dog-fur" cx="120" cy="92" rx="60" ry="52"/>
+    <ellipse cx="120" cy="92" rx="60" ry="52" fill="url(#dogShade)"/>
+
+    <path class="dog-black" d="M76 68 Q72 38 120 38 Q168 38 164 68 Q144 52 120 51 Q96 52 76 68 Z"/>
+
+    <ellipse class="dog-cream" cx="120" cy="112" rx="36" ry="28"/>
+
+    <g class="dog-eyes">
+      <ellipse class="dog-eye" cx="98" cy="90" rx="6.5" ry="7.5"/>
+      <ellipse class="dog-eye" cx="142" cy="90" rx="6.5" ry="7.5"/>
+      <circle class="dog-eye-shine" cx="100.5" cy="87.5" r="2.2"/>
+      <circle class="dog-eye-shine" cx="144.5" cy="87.5" r="2.2"/>
+    </g>
+
+    <ellipse class="dog-blush" cx="82" cy="108" rx="9" ry="6"/>
+    <ellipse class="dog-blush" cx="158" cy="108" rx="9" ry="6"/>
+
+    <ellipse class="dog-nose" cx="120" cy="106" rx="9" ry="6.5"/>
+    <path class="dog-mouth" d="M120 113 v5"/>
+    <path class="dog-mouth dog-smile" d="M120 118 q-9 9 -17 1 M120 118 q9 9 17 1"/>
+    <path class="dog-tongue" d="M112 122 q8 14 16 0 q-8 5 -16 0 Z"/>
+  </g>
+</svg>

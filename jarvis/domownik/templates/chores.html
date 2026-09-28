@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Obowiązki · Domownik{% endblock %}
+
+{% block content %}
+<section class="card">
+  <header class="card__head">
+    <h2>Wszystkie obowiązki</h2>
+    <span class="counter" id="choresCounter"></span>
+    <button type="button" class="btn btn--soft btn--sm" data-new-chore>{{ icon('plus') }} Nowy</button>
+  </header>
+
+  <div class="filters">
+    <input type="search" id="choreSearch" class="input--search" placeholder="Szukaj po nazwie…" autocomplete="off">
+    <div class="chips chips--filter" id="categoryFilter">
+      <button type="button" class="chip chip--btn is-active" data-cat="">Wszystkie kategorie</button>
+      {% for key, cat in categories.items() %}
+        <button type="button" class="chip chip--btn" data-cat="{{ key }}" style="--chip:{{ cat.color }}">
+          {{ cat.icon }} {{ cat.label }}
+        </button>
+      {% endfor %}
+    </div>
+    <div class="chips chips--filter" id="personFilter">
+      <button type="button" class="chip chip--btn is-active" data-person="">Wszyscy</button>
+      {% for key, person in people.items() %}
+        <button type="button" class="chip chip--btn" data-person="{{ key }}" style="--chip:{{ person.color }}">
+          {{ person.initial }} {{ person.label }}
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <ul class="chore-list" id="choreList"></ul>
+
+  <div class="empty" id="choresEmpty" hidden>
+    <span class="empty__icon">🐩</span>
+    <p><strong>Pusto.</strong><br>Dodaj pierwszy obowiązek — Atom dopilnuje reszty.</p>
+  </div>
+</section>
+
+<section class="card">
+  <header class="card__head">
+    <h2>{{ icon('database') }} Dane i przenoszenie</h2>
+  </header>
+  <p class="hint">
+    Wszystko siedzi w jednym pliku JSON. Pobierz go, żeby mieć kopię albo przenieść
+    obowiązki na inny komputer z Jarvisem.
+  </p>
+  <div class="data-actions">
+    <a class="btn btn--soft" href="{{ url_for('dom.api_export') }}" download>{{ icon('download') }} Pobierz kopię (JSON)</a>
+    <button type="button" class="btn btn--soft" id="importBtn">{{ icon('upload') }} Wczytaj plik JSON</button>
+    <input type="file" id="importInput" accept=".json,application/json" hidden>
+  </div>
+  <p class="hint hint--warn">
+    Wczytanie pliku podmienia wszystkie dane. Stara wersja zostaje obok jako kopia
+    <code>chores.przed-importem-….json</code>.
+  </p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chores.js') }}"></script>
+{% endblock %}

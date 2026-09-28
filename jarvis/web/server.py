@@ -96,16 +96,21 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
             raise HTTPException(400, "Puste polecenie.")
         return {"reply": jarvis.respond(text, "text")}
 
-    # --- kalendarz (Domownik) ---
+    # --- Domownik (zakładka Dom) ---
 
     @api.get("/api/domownik/status")
     def domownik_status() -> dict[str, Any]:
-        """Czy serwer Domownika odpowiada – UI pokazuje wtedy jego kalendarz, a jeśli nie, podpowiedź."""
+        """Czy Domownik odpowiada – UI pokazuje wtedy jego strony, a jeśli nie, powód i podpowiedź."""
+        status = jarvis.domownik_server.status()
+        if status["serve"] and status["state"] != "running":
+            # na zajętym porcie odpowiada zwykle stary serwer z innymi danymi – nie pokazujemy go
+            return {**status, "ok": False, "error": status["error"] or "Domownik jeszcze się uruchamia…"}
         try:
             jarvis.domownik.ping()
         except DomownikError as e:
-            return {"url": jarvis.domownik.url, "ok": False, "error": str(e)}
-        return {"url": jarvis.domownik.url, "ok": True, "error": None}
+            # własny błąd wbudowanego serwera (np. zajęty port) mówi więcej niż „nie odpowiada”
+            return {**status, "ok": False, "error": status["error"] or str(e)}
+        return {**status, "ok": True, "error": None}
 
     # --- Messenger (przeglądarka w tle) ---
 
