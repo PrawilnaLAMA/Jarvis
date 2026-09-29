@@ -114,27 +114,16 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const msgF = fields('messenger', 'messenger');
   const uiF = fields('ui', 'ui');
 
+  // kolejność = spis po lewej: głos i mowa, komunikatory, dom, model, na końcu interfejs
   const layout = [
     card(
-      'voice-out', 'Głos', { section: 'voice', wide: true, desc: 'Zmiany działają od razu – po każdej usłyszysz próbkę. Głosy „wielojęzyczne” też mówią po polsku.' },
+      'voice-out', 'Głos', { section: 'voice', desc: 'Zmiany działają od razu – po każdej usłyszysz próbkę. Głosy „wielojęzyczne” też mówią po polsku.' },
       liveF('tts_voice', ttsVoice),
       liveF('tts_rate', rate),
       liveF('tts_pitch', pitch),
       liveF('volume', volume),
       h('div', { class: 'field field-inline' }, previewBtn, previewMsg),
       outF('speak_text_replies', toggleField({ label: 'Czytaj na głos odpowiedzi na komendy wpisane' })),
-    ),
-    card(
-      'contacts', 'Kontakty',
-      { section: 'contacts', wide: true, desc: 'Osoby, do których Jarvis może pisać na Discordzie i Messengerze (wystarczy jedno z nich). Link do czatu Messengera skopiuj z paska adresu na messenger.com. Nazwy zapisywane są wielkimi literami, aliasy to inne formy imienia.' },
-      fields('contacts', 'contacts')(null, contacts),
-    ),
-    card('secrets', 'Klucze API', { desc: 'Zapisywane w pliku .env. Zostaw pole puste, aby nie zmieniać klucza.' }, secretControls.map((s) => s.el)),
-    card(
-      'llm', 'Model językowy', { section: 'llm' },
-      llmF('model', model),
-      llmF('fallback_model', textField({ label: 'Model zapasowy (Cerebras)', hint: 'Używany, gdy Groq nie odpowiada.', placeholder: 'np. gpt-oss-120b' })),
-      llmF('history_messages', numberField({ label: 'Pamięć rozmowy', hint: 'Ile ostatnich wiadomości rozmowy wysyłać do modelu (0–100).', min: 0, max: 100, integer: true, unit: 'wiad.' })),
     ),
     card(
       'voice-in', 'Rozpoznawanie mowy', { section: 'voice' },
@@ -162,12 +151,9 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       inF('output_device', outputDevice),
     ),
     card(
-      'domownik', 'Domownik', { section: 'domownik', desc: 'Zakładka Dom: obowiązki domowe, kalendarz, lista zakupów i grafik Natalii. Domownik działa razem z Jarvisem, a telefony wchodzą na niego przez przeglądarkę (można go dodać do ekranu głównego).' },
-      domF('serve', toggleField({ label: 'Uruchamiaj Domownika w Jarvisie', hint: 'Wyłącz tylko wtedy, gdy Domownik działa na innym komputerze – podaj wtedy jego adres niżej. Dwa serwery to dwa osobne zestawy danych.' })),
-      domF('lan', toggleField({ label: 'Dostęp z telefonów w sieci domowej', hint: 'Za pierwszym razem Windows zapyta o zgodę zapory – zezwól w sieci prywatnej.' })),
-      domF('port', numberField({ label: 'Port', hint: 'Od 1024 do 65535, domyślnie 8080.', min: 1024, max: 65535, integer: true })),
-      domF('url', domownikUrl),
-      h('div', { class: 'field field-inline' }, domownikBtn, domownikMsg),
+      'contacts', 'Kontakty',
+      { section: 'contacts', desc: 'Osoby, do których Jarvis może pisać na Discordzie i Messengerze (wystarczy jedno z nich). Link do czatu Messengera skopiuj z paska adresu na messenger.com. Nazwy zapisywane są wielkimi literami, aliasy to inne formy imienia.' },
+      fields('contacts', 'contacts')(null, contacts),
     ),
     card(
       'discord', 'Discord', { section: 'discord' },
@@ -183,6 +169,21 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       msgF('browser', textField({ label: 'Przeglądarka (opcjonalnie)', hint: 'Ścieżka do pliku przeglądarki; puste = Chrome, a gdy go nie ma – Edge albo Chromium.', placeholder: 'automatycznie' })),
     ),
     card(
+      'domownik', 'Domownik', { section: 'domownik', desc: 'Zakładka Dom: obowiązki domowe, kalendarz, lista zakupów i grafik Natalii. Domownik działa razem z Jarvisem, a telefony wchodzą na niego przez przeglądarkę (można go dodać do ekranu głównego).' },
+      domF('serve', toggleField({ label: 'Uruchamiaj Domownika w Jarvisie', hint: 'Wyłącz tylko wtedy, gdy Domownik działa na innym komputerze – podaj wtedy jego adres niżej. Dwa serwery to dwa osobne zestawy danych.' })),
+      domF('lan', toggleField({ label: 'Dostęp z telefonów w sieci domowej', hint: 'Za pierwszym razem Windows zapyta o zgodę zapory – zezwól w sieci prywatnej.' })),
+      domF('port', numberField({ label: 'Port', hint: 'Od 1024 do 65535, domyślnie 8080.', min: 1024, max: 65535, integer: true })),
+      domF('url', domownikUrl),
+      h('div', { class: 'field field-inline' }, domownikBtn, domownikMsg),
+    ),
+    card(
+      'llm', 'Model językowy', { section: 'llm' },
+      llmF('model', model),
+      llmF('fallback_model', textField({ label: 'Model zapasowy (Cerebras)', hint: 'Używany, gdy Groq nie odpowiada.', placeholder: 'np. gpt-oss-120b' })),
+      llmF('history_messages', numberField({ label: 'Pamięć rozmowy', hint: 'Ile ostatnich wiadomości rozmowy wysyłać do modelu (0–100).', min: 0, max: 100, integer: true, unit: 'wiad.' })),
+    ),
+    card('secrets', 'Klucze API', { desc: 'Zapisywane w pliku .env. Zostaw pole puste, aby nie zmieniać klucza.' }, secretControls.map((s) => s.el)),
+    card(
       'ui', 'Interfejs', { section: 'ui' },
       autostartBox,
       uiF('desktop_orb', toggleField({ label: 'Kulka na pulpicie', hint: 'Jarvis jako kulka na pulpicie – pod oknami, widoczna, gdy patrzysz na pulpit; bez paska tytułu i przycisku na pasku zadań. Kliknięcie rozwija okno. Tylko Windows, wymaga ponownego uruchomienia.' })),
@@ -195,6 +196,16 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
   const pills = h('ul', { class: 'sys-pills', 'aria-label': 'Stan systemu' });
   const loadingEl = h('div', { class: 'settings-loading', role: 'status' }, 'Wczytywanie ustawień…');
   const cardsEl = h('div', { class: 'cards', hidden: true }, layout);
+  // spis sekcji: przewija do karty, podświetla tę, którą właśnie widać, kropka = niezapisane zmiany
+  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const navLinks = new Map();
+  const nav = h('nav', { class: 'settings-nav', 'aria-label': 'Sekcje ustawień', hidden: true },
+    Array.from(cards, ([id, c]) => {
+      const link = h('button', { type: 'button', class: 'settings-nav-link' }, c.title, h('span', { class: 'nav-dot', hidden: true }));
+      link.addEventListener('click', () => c.el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' }));
+      navLinks.set(id, link);
+      return link;
+    }));
 
   const saveMsg = h('p', { class: 'savebar-msg' });
   const resultEl = h('div', { class: 'savebar-result', hidden: true });
@@ -207,10 +218,9 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
 
   root.append(
     h('header', { class: 'settings-head' }, h('h1', { class: 'view-title' }, 'Ustawienia'), pills),
-    loadingEl,
-    cardsEl,
-    savebar,
+    h('div', { class: 'settings-body' }, nav, h('div', { class: 'settings-main' }, loadingEl, cardsEl, savebar)),
   );
+  watchSections();
 
   cardsEl.addEventListener('input', onEdit);
   cardsEl.addEventListener('change', onEdit);
@@ -275,12 +285,25 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
 
   // --- budowanie ---
 
-  function card(id, title, { section = null, wide = false, desc = '' }, ...content) {
+  /** Podświetla w spisie kartę, która zajmuje górę widoku. */
+  function watchSections() {
+    if (typeof IntersectionObserver !== 'function') return;
+    const scroller = root.closest('.view-settings');
+    const seen = new Map();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) seen.set(entry.target, entry.isIntersecting);
+      const current = Array.from(cards).find(([, c]) => seen.get(c.el));
+      for (const [id, link] of navLinks) link.classList.toggle('is-current', Boolean(current) && id === current[0]);
+    }, { root: scroller, rootMargin: '0px 0px -65% 0px' });
+    for (const c of cards.values()) observer.observe(c.el);
+  }
+
+  function card(id, title, { section = null, desc = '' }, ...content) {
     const badge = h('span', { class: 'card-badge', hidden: true }, 'zmienione');
     const titleId = `card-${id}`;
     const el = h(
       'section',
-      { class: `card${wide ? ' card-wide' : ''}`, 'aria-labelledby': titleId },
+      { class: 'card', 'aria-labelledby': titleId },
       h('header', { class: 'card-head' }, h('h2', { class: 'card-title', id: titleId }, title), badge),
       desc ? h('p', { class: 'card-desc' }, desc) : null,
       content,
@@ -303,6 +326,7 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
       loaded = true;
       loadingEl.hidden = true;
       cardsEl.hidden = false;
+      nav.hidden = false;
       applyPendingFocus();
     } catch (err) {
       loadingEl.classList.add('is-error');
@@ -405,7 +429,10 @@ export function initSettings({ socket, store, api, onDirtyChange }) {
 
   function refreshDirty() {
     const ids = computeDirty();
-    for (const [id, c] of cards) c.badge.hidden = !ids.has(id);
+    for (const [id, c] of cards) {
+      c.badge.hidden = !ids.has(id);
+      navLinks.get(id).querySelector('.nav-dot').hidden = !ids.has(id);
+    }
     const dirty = ids.size > 0;
     const titles = Array.from(ids, (id) => cards.get(id).title);
     saveMsg.textContent = dirty ? `Niezapisane zmiany: ${titles.join(', ')}` : '';

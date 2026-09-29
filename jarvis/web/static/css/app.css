@@ -1666,9 +1666,58 @@ input[type="time"].input {
 }
 
 .settings {
-  max-width: 1180px;
+  max-width: 1060px;
   margin: 0 auto;
   padding: 18px 16px 24px;
+}
+
+/* spis sekcji po lewej (przyklejony), karty w jednej kolumnie po prawej */
+.settings-body {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.settings-nav {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-left: 2px solid var(--line);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.18s, background-color 0.18s, border-color 0.18s;
+}
+
+.settings-nav-link:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-nav-link.is-current {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft), transparent);
+  color: var(--text);
+}
+
+.settings-main {
+  min-width: 0;
 }
 
 .settings-head {
@@ -1759,22 +1808,18 @@ input[type="time"].input {
   color: var(--danger);
 }
 
-/* karty w zrównoważonych kolumnach (bez dziur pod niskimi kartami) */
+/* karty jedna pod drugą, w kolejności spisu – łatwiej znaleźć, niż w kolumnach o różnej wysokości */
 .cards {
-  column-gap: 14px;
-  columns: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .card {
   position: relative;
-  display: inline-block;
-  width: 100%;
-  margin: 0 0 14px;
-  padding: 16px 16px 18px;
-  vertical-align: top;
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  page-break-inside: avoid;
+  padding: 18px 20px 20px;
+  scroll-margin-top: 12px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel);
 }
@@ -1793,11 +1838,6 @@ input[type="time"].input {
   pointer-events: none;
 }
 
-.card-wide {
-  display: block;
-  column-span: all;
-  -webkit-column-span: all;
-}
 
 .card-head {
   display: flex;
@@ -2230,6 +2270,39 @@ html[data-desktop] .win-controls {
     height: 1px;
     overflow: hidden;
     clip: rect(0 0 0 0);
+  }
+}
+
+/* wąsko (Pi, telefon): spis sekcji jako przewijany pasek nad kartami */
+@media (max-width: 860px) {
+  .settings-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .settings-nav {
+    top: 0;
+    z-index: 6;
+    flex-direction: row;
+    margin: 0 -16px;
+    padding: 4px 16px;
+    overflow-x: auto;
+    background: linear-gradient(180deg, var(--bg) 80%, transparent);
+    scrollbar-width: none;
+  }
+
+  .settings-nav-link {
+    flex: none;
+    min-height: 34px;
+    border-left: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    white-space: nowrap;
+  }
+
+  .settings-nav-link.is-current {
+    border-bottom-color: var(--accent);
+    background: var(--accent-soft);
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { $, h, icon, clear, onMediaChange } from './dom.js';
 import { formatClock, formatLongDate, toISODate, addDays } from './dates.js';
-import { capitalize } from './i18n.js';
+import { TOOL_LABELS, capitalize } from './i18n.js';
 import { assistantState } from './store.js';
 
 const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'messenger.message', 'notice'];
@@ -232,7 +232,8 @@ const RENDERERS = {
   },
 
   tool(data, ts) {
-    const head = [icon('wrench'), h('code', { class: 'tool-name' }, str(data.name) || 'narzędzie'), timeEl(ts)];
+    const name = str(data.name);
+    const head = [icon('wrench'), h('span', { class: 'tool-name', title: name }, TOOL_LABELS[name] || name || 'Narzędzie'), timeEl(ts)];
     const details = describeTool(data);
     if (!details) return h('li', { class: 'sys sys-tool' }, h('div', { class: 'sys-line' }, head));
     return h(
@@ -302,6 +303,7 @@ function daySeparator(ts) {
 
 function describeTool(data) {
   const parts = [];
+  if (data.name && TOOL_LABELS[data.name]) parts.push(`Narzędzie: ${data.name}`);
   const args = data.args;
   if (args && typeof args === 'object' && Object.keys(args).length) parts.push(`Argumenty: ${stringify(args)}`);
   else if (typeof args === 'string' && args.trim()) parts.push(`Argumenty: ${args}`);

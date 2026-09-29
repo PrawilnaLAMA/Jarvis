@@ -32,6 +32,25 @@ export const STATE_HINTS = {
   offline: 'Głos jest niedostępny — możesz pisać na czacie.',
 };
 
+/** Co Jarvis zrobił – po ludzku, w czacie (nazwa funkcji zostaje w szczegółach). Nowe narzędzie → nowy wpis. */
+export const TOOL_LABELS = {
+  house_agenda: 'Plan domu',
+  chore_done: 'Odhaczenie obowiązku',
+  chore_add: 'Nowy wpis w kalendarzu',
+  chore_delete: 'Usunięcie obowiązku',
+  chore_info: 'Szczegóły obowiązku',
+  open_domownik: 'Zakładka Dom',
+  shopping_list: 'Lista zakupów',
+  shopping_update: 'Zmiana listy zakupów',
+  send_message: 'Wysłanie wiadomości',
+  search_web: 'Wyszukiwanie w Google',
+  play_youtube: 'YouTube',
+  shutdown_computer: 'Wyłączanie komputera',
+  cancel_shutdown: 'Anulowanie wyłączenia',
+  stay_silent: 'Cisza',
+  clear_conversation: 'Czyszczenie pamięci rozmowy',
+};
+
 export function capitalize(text) {
   return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
