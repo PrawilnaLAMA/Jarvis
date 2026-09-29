@@ -1,5 +1,5 @@
 """Komputer (Windows): aplikacje, strony, foldery i ustawienia, głośność i muzyka, zamykanie programów,
-blokada, uśpienie, zrzut ekranu, stan komputera i minutnik.
+blokada, uśpienie, zrzut ekranu, stan komputera i minutnik (co do sekundy, w kuli Jarvisa).
 
 Same gotowe czynności z naszymi, stałymi skryptami – model wybiera tylko czynność i nazwę, nigdy nie
 podaje kodu. Nazwy od użytkownika trafiają do PowerShella wyłącznie przez zmienne środowiska.
@@ -16,6 +16,8 @@ import time
 from typing import Any
 
 from jarvis.polish import join_pl
+from jarvis.services.timers import MAX_SECONDS as MAX_TIMER_SECONDS
+from jarvis.services.timers import Timers
 from jarvis.tools.base import Tool, ToolContext, ToolError, params
 
 _ASCII = str.maketrans("ąćęłńóśźż", "acelnoszz")
@@ -350,19 +352,27 @@ def system_info(ctx: ToolContext, args: dict[str, Any]) -> str:
     return "; ".join(lines) or "Brak danych o komputerze."
 
 
-# --- minutnik ---
+# --- minutnik (odliczanie widać w kuli Jarvisa – services/timers.py) ---
+
+# forma po „na” (biernik) i po „do końca” (mianownik), potem 2–4 i 5+
+_UNITS = (
+    (3600, ("godzinę", "godzina"), "godziny", "godzin"),
+    (60, ("minutę", "minuta"), "minuty", "minut"),
+    (1, ("sekundę", "sekunda"), "sekundy", "sekund"),
+)
+_TIMER_WORDS = {"minutnik", "minutnika", "minutniki", "minutnikow", "timer", "timera", "stoper", "stopera", "na"}
+_ALL_WORDS = {"wszystkie", "wszystkich", "wszystko", "kazdy"}
 
 
-def _duration(seconds: float) -> str:
-    seconds = round(seconds)
-    if seconds < 60:
-        return f"{seconds} {_plural(seconds, 'sekundę', 'sekundy', 'sekund')}"
-    minutes = round(seconds / 60)
-    if minutes < 60:
-        return f"{minutes} {_plural(minutes, 'minutę', 'minuty', 'minut')}"
-    hours, rest = divmod(minutes, 60)
-    text = f"{hours} {_plural(hours, 'godzinę', 'godziny', 'godzin')}"
-    return f"{text} i {rest} {_plural(rest, 'minutę', 'minuty', 'minut')}" if rest else text
+def _duration(seconds: float, nominative: bool = False) -> str:
+    """„2 minuty i 30 sekund”, „1 godzinę, 5 minut i 3 sekundy” – co do sekundy."""
+    rest = max(0, round(seconds))
+    parts = []
+    for size, one, few, many in _UNITS:
+        n, rest = divmod(rest, size)
+        if n:
+            parts.append(f"{n} {_plural(n, one[nominative], few, many)}")
+    return join_pl(parts) or "0 sekund"
 
 
 def _plural(n: int, one: str, few: str, many: str) -> str:
@@ -371,51 +381,94 @@ def _plural(n: int, one: str, few: str, many: str) -> str:
     return few if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else many
 
 
+def _seconds(args: dict[str, Any]) -> float | None:
+    """Suma hours/minutes/seconds; None, gdy nic nie podano."""
+    total, given = 0.0, False
+    for key, size in (("hours", 3600), ("minutes", 60), ("seconds", 1)):
+        if args.get(key) in (None, ""):
+            continue
+        try:
+            total += float(args[key]) * size
+        except (TypeError, ValueError) as e:
+            raise ToolError("Nie zrozumiałem, na ile nastawić minutnik.") from e
+        given = True
+    return total if given else None
+
+
+def _timers(ctx: ToolContext) -> Timers:
+    if ctx.timers is None:  # kontekst bez aplikacji (testy) – własne minutniki
+        ctx.timers = Timers(ctx.bus, ctx.announce)
+    return ctx.timers
+
+
 def timer(ctx: ToolContext, args: dict[str, Any]) -> str:
-    timers: dict[int, dict[str, Any]] = ctx.state.setdefault("timers", {})
+    timers = _timers(ctx)
     action = args.get("action") or "set"
     label = str(args.get("label") or "").strip()
+    words = _words(label)
+    query = [w for w in words if w not in _TIMER_WORDS and w not in _ALL_WORDS]
+    if not query:
+        label = ""  # model podpisuje czasem „minutnik” – to nie jest nazwa
     if action == "set":
-        try:
-            seconds = float(args.get("minutes")) * 60
-        except (TypeError, ValueError) as e:
-            raise ToolError("Na ile nastawić minutnik?") from e
-        seconds = max(5.0, min(seconds, 24 * 3600))
-        timer_id = max(timers, default=0) + 1
-
-        def ring() -> None:
-            timers.pop(timer_id, None)
-            text = f"Minął czas: {label}." if label else "Minął czas na minutniku."
-            ctx.bus.notice(text, "info")
-            ctx.announce(text)
-
-        handle = threading.Timer(seconds, ring)
-        handle.daemon = True
-        timers[timer_id] = {"label": label, "due": time.monotonic() + seconds, "handle": handle}
-        handle.start()
+        seconds = _seconds(args)
+        if not seconds or seconds < 1:
+            raise ToolError("Na ile nastawić minutnik?")
+        if seconds > MAX_TIMER_SECONDS:
+            raise ToolError("Minutnik nastawię najwyżej na 24 godziny – dłuższe sprawy zapisz w kalendarzu.")
+        timers.start(round(seconds), label)
         return f"Minutnik na {_duration(seconds)}{f': {label}' if label else ''}."
+
+    chosen = [t for t in timers.all() if not query or _matches(query, t.label or "minutnik")]
+    if not chosen:
+        if action == "list":
+            return "Nie ma nastawionych minutników."
+        raise ToolError("Nie ma takiego minutnika." if query and timers.all() else "Nie ma nastawionych minutników.")
+    if len(chosen) > 1 and not query and action in ("add", "cancel") and not _ALL_WORDS & set(words):
+        # „anuluj minutnik” przy kilku – lepiej zapytać, niż skasować wszystkie
+        names = [t.label or "bez nazwy" for t in chosen]
+        raise ToolError(f"Który minutnik: {', '.join(names[:-1])} czy {names[-1]}? Mogę też wszystkie.")
+    if action == "list":
+        parts = []
+        for t in chosen:
+            left = _duration(timers.remaining(t), nominative=True)
+            parts.append(f"{t.label or 'minutnik'} – do końca {left}{' (wstrzymany)' if t.paused else ''}")
+        text = "; ".join(parts)
+        return text[0].upper() + text[1:] + "."
+    if action == "add":
+        seconds = _seconds(args)
+        if not seconds:
+            raise ToolError("Ile czasu dodać do minutnika?")
+        target = chosen[0]
+        timers.add(target.id, seconds)
+        verb = "Dodałem" if seconds > 0 else "Odjąłem"
+        return f"{verb} {_duration(abs(seconds))} – do końca {_duration(timers.remaining(target), nominative=True)}."
+    if action == "pause":
+        for t in chosen:
+            timers.pause(t.id)
+        return "Wstrzymałem minutnik." if len(chosen) == 1 else f"Wstrzymałem minutniki: {len(chosen)}."
+    if action == "resume":
+        for t in chosen:
+            timers.resume(t.id)
+        return f"Wznawiam – do końca {_duration(timers.remaining(chosen[0]), nominative=True)}."
     if action == "cancel":
-        chosen = [i for i, t in timers.items() if not label or _matches(_words(label), t["label"] or "minutnik")]
-        if not chosen:
-            raise ToolError("Nie ma takiego minutnika.")
-        for i in chosen:
-            timers.pop(i)["handle"].cancel()
+        for t in chosen:
+            timers.cancel(t.id)
         return "Anulowałem minutnik." if len(chosen) == 1 else f"Anulowałem minutniki: {len(chosen)}."
-    if not timers:
-        return "Nie ma nastawionych minutników."
-    now = time.monotonic()
-    parts = [f"{t['label'] or 'minutnik'} – zostało {_duration(t['due'] - now)}" for t in timers.values()]
-    return "; ".join(parts) + "."
+    raise ToolError("Nie wiem, co zrobić z minutnikiem.")
 
 
 def tools() -> list[Tool]:
     everywhere = [
         Tool(
             "timer",
-            "Minutnik: set (minutes, label – np. „makaron”), cancel, list.",
+            "Minutnik co do sekundy, widoczny w kuli. set – nowy (hours/minutes/seconds, label np. „jajka”); "
+            "add – dodaj czas nastawionemu (ujemny odejmuje); pause – wstrzymaj/zatrzymaj; resume; "
+            "cancel – anuluj/wyłącz; list. label wybiera minutnik, „wszystkie” – każdy.",
             params({
-                "action": {"type": "string", "enum": ["set", "cancel", "list"]},
+                "action": {"type": "string", "enum": ["set", "add", "pause", "resume", "cancel", "list"]},
+                "hours": {"type": "number"},
                 "minutes": {"type": "number"},
+                "seconds": {"type": "number"},
                 "label": {"type": "string"},
             }),
             timer,

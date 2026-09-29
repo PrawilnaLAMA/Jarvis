@@ -52,9 +52,11 @@ The window stands centered on the orb's monitor, unless the orb is too far from 
 - `close_app`: `CloseMainWindow`. It never touches Jarvis itself, Explorer, or the Messenger browser.
 - `pc`: lock, sleep, screenshot.
 - `system_info`.
-- `timer`.
+- `timer`: a thin layer over `services/timers.Timers` (below).
 
 The model only picks the action and a name; the scripts are our own constants. User input reaches PowerShell only through environment variables (`ctx.powershell(script, env)`). Tests fake `launch`/`powershell`/`press_key`/`open_url`. Word matching tolerates Polish endings but requires near-equal words, because a bare 4-letter prefix matched "Instagrama" to "Visual Studio Installer". These tools add about 600 tokens per request.
+
+**Timers** (`services/timers.py`, owned by `JarvisApp`, passed as `ToolContext.timers`) run to the second: start, pause, resume, add (negative subtracts), cancel. Every change publishes the whole list as `timers` (also sent in the WS `hello`), and the end publishes `timer.ring` plus a spoken notice. Each rescheduling gets a new token, so a stale `threading.Timer` never rings. Tests inject `clock`/`schedule`. The UI can set timers too (`/api/timers`). `js/timer.js` counts down locally from `remaining` and shows the soonest timer inside the orb: Oxanium digits (bundled, OFL), cells of fixed width with rolling digits (`js/clock.js`), and a dark lens in the core (`u_hollow` in the shader). `Orb.setTimer` makes the coils a gauge of the time left, the inner hoop the exact progress, and the scale a ticking seconds hand. The desktop orb shows the digits only. Setting by hand happens in the orb (wheel, drag, arrows, typed digits per field, like `<input type="time">`), with buttons in the row under it. With several timers and no name, the tool asks which one before `cancel`/`add`.
 
 The system prompt is static so Groq can cache the prefix. Dynamic context (current date, the next-14-days table used for relative dates, and interruption notes) is prepended to the latest user message in a `<kontekst>` block by `build_context`. The free Groq tier allows about 8K tokens/min, and a request is about 1.3–1.5K tokens, so keep tool descriptions and the prompt short.
 

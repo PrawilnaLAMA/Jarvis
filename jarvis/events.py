@@ -15,6 +15,8 @@ Tematy (topic) i ich dane:
 - notice           {text, level: info|warning|error}
 - confirm.request  {id, description, command}          – polecenie konsoli czeka na zgodę użytkownika
 - confirm.done     {id, status: done|failed|cancelled|expired, output}
+- timers           {timers: [{id, label, total, remaining, paused}]}  – cała lista po każdej zmianie (s)
+- timer.ring       {id, label, total}                 – minął czas (kula błyska, Jarvis mówi)
 - settings.changed {}
 - ui.navigate      {view: jarvis|dom|settings, path?}  – path: podstrona Domownika, np. /zakupy
 - ui.show          {}                                   – przywołaj okno (drugie uruchomienie Jarvisa)

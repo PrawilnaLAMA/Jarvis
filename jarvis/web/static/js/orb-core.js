@@ -21,6 +21,7 @@ uniform float u_level;
 uniform float u_bright;
 uniform float u_swirl;
 uniform float u_halo;
+uniform float u_hollow;
 uniform vec3 u_core;
 uniform vec3 u_glow;
 
@@ -118,9 +119,12 @@ void main() {
     body *= 0.5 + 0.5 * z;
     float rim = pow(1.0 - z, 2.2);
     body += u_core * rim * 1.1;
-    body += mix(u_core, white, 0.7) * exp(-d * d * 4.2) * (0.5 + u_level * 0.7);
+    body += mix(u_core, white, 0.7) * exp(-d * d * 4.2) * (0.5 + u_level * 0.7) * (1.0 - u_hollow);
+    // minutnik: ciemna soczewka pod cyframi, plazma zostaje przy brzegu
+    float lens = 1.0 - u_hollow * 0.94 * (1.0 - smoothstep(0.35, 1.0, d));
+    body *= lens;
     float mask = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, d);
-    col = mix(col, body + col * 0.35, mask);
+    col = mix(col, body + col * 0.35 * lens, mask);
   }
 
   col *= u_bright;
@@ -129,7 +133,9 @@ void main() {
 }
 `;
 
-const UNIFORMS = ['u_center', 'u_radius', 'u_amp', 'u_time', 'u_level', 'u_bright', 'u_swirl', 'u_halo', 'u_core', 'u_glow'];
+const UNIFORMS = [
+  'u_center', 'u_radius', 'u_amp', 'u_time', 'u_level', 'u_bright', 'u_swirl', 'u_halo', 'u_hollow', 'u_core', 'u_glow',
+];
 
 // Raspberry Pi (i inne słabe ARM-y): rdzeń w mniejszej rozdzielczości – plazma jest miękka, nie widać różnicy
 const LOW_POWER = /aarch64|armv7|arm64/i.test(navigator.userAgent) && !/Windows|Mac/i.test(navigator.userAgent);
@@ -186,7 +192,7 @@ export class OrbCore {
   }
 
   /** Jedna klatka; wymiary w pikselach CSS (jak w 2D), kolory 0..255. */
-  draw({ cx, cy, radius, amp, time, level, brightness, swirl, halo, core, glow }) {
+  draw({ cx, cy, radius, amp, time, level, brightness, swirl, halo, hollow = 0, core, glow }) {
     const { gl, loc, k } = this;
     if (this.lost || !k) return;
     const h = this.layer.height;
@@ -205,6 +211,7 @@ export class OrbCore {
     gl.uniform1f(loc.u_bright, brightness);
     gl.uniform1f(loc.u_swirl, swirl);
     gl.uniform1f(loc.u_halo, halo);
+    gl.uniform1f(loc.u_hollow, hollow);
     gl.uniform3f(loc.u_core, core[0] / 255, core[1] / 255, core[2] / 255);
     gl.uniform3f(loc.u_glow, glow[0] / 255, glow[1] / 255, glow[2] / 255);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

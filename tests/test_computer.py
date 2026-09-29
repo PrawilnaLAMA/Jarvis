@@ -113,30 +113,6 @@ def test_media_keys(ctx, rec):
         computer.media(ctx, {"action": "set_volume"})
 
 
-def test_timer_rings_and_can_be_cancelled(ctx, rec, recorder, monkeypatch):
-    started = []
-
-    class FakeTimer:
-        def __init__(self, seconds, fn):
-            self.seconds, self.fn, self.cancelled = seconds, fn, False
-            started.append(self)
-
-        def start(self):
-            pass
-
-        def cancel(self):
-            self.cancelled = True
-
-    monkeypatch.setattr(computer.threading, "Timer", FakeTimer)
-    assert computer.timer(ctx, {"action": "set", "minutes": 10, "label": "makaron"}) == "Minutnik na 10 minut: makaron."
-    assert computer.timer(ctx, {"action": "set", "minutes": 0.5}) == "Minutnik na 30 sekund."
-    assert "makaron – zostało 10 minut" in computer.timer(ctx, {"action": "list"})
-    started[0].fn()
-    assert rec.spoken == ["Minął czas: makaron."] and recorder.of("notice")[-1]["text"] == "Minął czas: makaron."
-    assert computer.timer(ctx, {"action": "cancel"}) == "Anulowałem minutnik."
-    assert started[1].cancelled and computer.timer(ctx, {"action": "list"}) == "Nie ma nastawionych minutników."
-
-
 def test_system_info_is_readable(ctx):
     text = computer.system_info(ctx, {})
     assert "Bateria 81% (podłączony do prądu)" in text and "Dysk C: wolne 120.5 z 476.3 GB" in text

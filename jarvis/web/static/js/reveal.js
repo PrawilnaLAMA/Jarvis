@@ -26,7 +26,8 @@ function parts() {
       [$('#setup-banner'), 'down', 160],
       [chatColumn ? $('#chat') : null, 'left', 200],
       [$('#captions'), 'up', 300],
-      [$('.controls'), 'up', 370],
+      [$('#controls'), 'up', 370],
+      [$('#timer-edit-controls'), 'up', 370],
     ];
   }
   return [

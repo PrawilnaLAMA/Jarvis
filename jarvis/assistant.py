@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -49,6 +50,9 @@ def build_system_prompt(settings: Settings) -> str:
         "- Nie zgaduj zawartości kalendarza, zakupów ani grafiku – sprawdź narzędziem.",
         "- <kontekst> dodaje system, użytkownik go nie widzi.",
     ]
+    if sys.platform == "win32":
+        lines.append("- Czynność na komputerze bez gotowego narzędzia: od razu wywołaj run_command – o zgodę zapyta "
+                     "system, więc sam nie pytaj i nie odmawiaj.")
     aliases = [f"{c.name} = {', '.join(c.aliases)}" for c in settings.contacts if c.aliases]
     if aliases:
         lines.append(f"Inne nazwy kontaktów: {'; '.join(aliases)}.")

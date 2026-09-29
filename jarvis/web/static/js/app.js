@@ -12,6 +12,7 @@ import { initChat } from './chat.js';
 import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
 import { initDesktop } from './desktop.js';
+import { initTimer } from './timer.js';
 import { enterUI } from './reveal.js';
 
 const VIEWS = ['jarvis', 'dom', 'settings'];
@@ -60,6 +61,8 @@ socket.on('audio.level', (data) => orb.setLevel(data.source, data.level));
 
 initSubtitles(ctx);
 initChat(ctx);
+const timer = initTimer(ctx); // przed initControls – Esc najpierw zamyka nastawianie minutnika
+timer.attach(orb);
 
 const views = {
   jarvis: {
@@ -77,7 +80,7 @@ const views = {
 
 initControls(ctx); // na końcu – Esc najpierw zamyka panele, dopiero potem przerywa mówienie
 // pod zwiniętą kulką duża kula stoi wstrzymana; rozwinięcie przenosi ją z miejsca kulki na jej miejsce
-initDesktop({ ...ctx, orb, isOrbView: () => store.get().view === 'jarvis' });
+initDesktop({ ...ctx, orb, timer, isOrbView: () => store.get().view === 'jarvis' });
 
 store.subscribe(render);
 render(store.get());

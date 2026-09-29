@@ -1,4 +1,5 @@
-Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+Archivo: Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+Oxanium (cyfry minutnika): Copyright 2019 The Oxanium Project Authors (https://github.com/sevmeyer/oxanium)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

@@ -139,3 +139,18 @@ def test_confirm_endpoint_only_for_a_pending_command(client):
     assert client.post("/api/confirm", json={"id": "nie-ma", "accept": True}).status_code == 409
     evil = {"origin": "https://zla-strona.example"}
     assert client.post("/api/confirm", json={"id": "x", "accept": True}, headers=evil).status_code == 403
+
+
+def test_timers_set_in_the_orb_to_the_second(client):
+    timer = client.post("/api/timers", json={"seconds": 95, "label": "jajka"}).json()["timers"][0]
+    assert timer["label"] == "jajka" and timer["total"] == 95 and not timer["paused"]
+    with client.websocket_connect(WS) as ws:  # nowe okno od razu widzi odliczanie
+        assert ws.receive_json()["data"]["timers"][0]["id"] == timer["id"]
+    url = f"/api/timers/{timer['id']}"
+    assert client.post(url, json={"action": "pause"}).json()["timers"][0]["paused"] is True
+    assert client.post(url, json={"action": "add", "seconds": 60}).json()["timers"][0]["total"] == 155
+    assert client.post(url, json={"action": "explode"}).status_code == 400
+    assert client.post(url, json={"action": "cancel"}).json() == {"timers": []}
+    assert client.post(url, json={"action": "resume"}).status_code == 404
+    assert client.post("/api/timers", json={"seconds": 0}).status_code == 400
+    assert client.post("/api/timers", json={"seconds": "pięć"}).status_code == 400

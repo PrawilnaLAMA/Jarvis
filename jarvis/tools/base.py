@@ -17,6 +17,7 @@ from jarvis.services.discord_client import DiscordClient
 from jarvis.services.domownik_client import DomownikClient
 from jarvis.services.inbox import Inbox
 from jarvis.services.messenger import MessengerService
+from jarvis.services.timers import Timers
 from jarvis.settings import SettingsStore
 
 
@@ -97,8 +98,9 @@ class ToolContext:
     shell: Callable[[str], str] = _shell  # konsola – tylko po zgodzie użytkownika (tools/console.py)
     press_key: Callable[[int, int], None] = _press_key
     announce: Callable[[str], None] = lambda text: None  # mówi na głos (minutnik); JarvisApp podaje swój
+    timers: Timers | None = None  # minutniki w kuli; bez aplikacji narzędzie tworzy własne
     clock: Callable[[], datetime] = field(default=datetime.now)
-    state: dict[str, Any] = field(default_factory=dict)  # pamięć narzędzi (minutniki, lista aplikacji)
+    state: dict[str, Any] = field(default_factory=dict)  # pamięć narzędzi (lista aplikacji)
 
 
 Handler = Callable[[ToolContext, dict[str, Any]], str]

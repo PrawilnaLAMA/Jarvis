@@ -24,6 +24,7 @@ from jarvis.events import Event, EventBus
 from jarvis.llm import LLMError
 from jarvis.services.domownik_client import DomownikError
 from jarvis.services.messenger import MessengerError
+from jarvis.services.timers import MAX_SECONDS as MAX_TIMER_SECONDS
 from jarvis.settings import SECRET_KEYS, SettingsError
 
 log = logging.getLogger(__name__)
@@ -133,6 +134,42 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
         """Drugie uruchomienie Jarvisa (np. obok autostartu) przywołuje okno tego zamiast startować."""
         jarvis.bus.publish("ui.show")
         return {"shown": True}
+
+    # --- minutniki (odliczanie w kuli Jarvisa) ---
+
+    @api.get("/api/timers")
+    def timers_list() -> dict[str, Any]:
+        return {"timers": jarvis.timers.snapshot()}
+
+    @api.post("/api/timers", response_model=None)
+    def timers_start(body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
+        """Minutnik nastawiony w kuli (co do sekundy)."""
+        try:
+            seconds = round(float(body.get("seconds")))
+        except (TypeError, ValueError):
+            return _error(400, "Podaj czas minutnika.")
+        if not 1 <= seconds <= MAX_TIMER_SECONDS:
+            return _error(400, "Minutnik: od 1 sekundy do 24 godzin.")
+        jarvis.timers.start(seconds, str(body.get("label") or "")[:60])
+        return {"timers": jarvis.timers.snapshot()}
+
+    @api.post("/api/timers/{timer_id}", response_model=None)
+    def timers_change(timer_id: int, body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
+        """Przyciski przy minutniku: pause, resume, cancel, add (seconds – ujemne odejmuje)."""
+        timers = jarvis.timers
+        action = body.get("action")
+        if action == "add":
+            try:
+                found = timers.add(timer_id, float(body.get("seconds")))
+            except (TypeError, ValueError):
+                return _error(400, "Podaj, ile sekund dodać.")
+        elif action in ("pause", "resume", "cancel"):
+            found = getattr(timers, action)(timer_id)
+        else:
+            return _error(400, "Nieznana czynność minutnika.")
+        if not found:
+            return _error(404, "Tego minutnika już nie ma.")
+        return {"timers": timers.snapshot()}
 
     # --- autostart z Windowsem ---
 
@@ -266,7 +303,8 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
 
         send_task = asyncio.create_task(sender())
         try:
-            hello = {"state": jarvis.tracker.state, "status": jarvis.status(), "history": list(hub.history)}
+            hello = {"state": jarvis.tracker.state, "status": jarvis.status(), "history": list(hub.history),
+                     "timers": jarvis.timers.snapshot()}
             await ws.send_json({"topic": "hello", "data": hello, "ts": time.time()})
             while True:
                 await _handle_client_message(jarvis, await ws.receive_json())

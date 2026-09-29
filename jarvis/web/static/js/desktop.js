@@ -17,7 +17,7 @@ const FLIGHT_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const RING_WIDTH = 38; // px – świecący pas przy brzegu koła
 const TAU = Math.PI * 2;
 
-export function initDesktop({ store, socket, orb: bigOrb, isOrbView }) {
+export function initDesktop({ store, socket, orb: bigOrb, timer, isOrbView }) {
   const root = document.documentElement;
   const box = $('#desk-orb');
   const wrap = $('#orb-wrap');
@@ -46,6 +46,7 @@ export function initDesktop({ store, socket, orb: bigOrb, isOrbView }) {
     root.dataset.desktop = '';
     orb = new Orb($('#desk-orb-canvas'));
     socket.on('audio.level', (data) => orb.setLevel(data.source, data.level));
+    timer?.attach(orb, $('#desk-orb-face')); // odliczanie widać też w kulce na pulpicie
     const syncState = (s) => orb.setState(assistantState(s));
     store.subscribe(syncState);
     syncState(store.get());

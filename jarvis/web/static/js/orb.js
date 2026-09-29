@@ -5,6 +5,8 @@
 // pierścienie zewnętrzne i cząsteczki. Segmenty świecą w rytm głosu, a przy myśleniu obiega je światło.
 // Poziom dźwięku (audio.level) wygładzamy: szybki atak, wolne opadanie – kula „oddycha” w rytm mowy
 // przy 60 fps, choć pomiary przychodzą rzadziej. playIntro() rozkłada HUD wokół kuli (rozwinięcie okna).
+// Przy minutniku (setTimer, js/timer.js) środek kuli ciemnieje pod cyframi, cewki stają i pokazują, ile
+// zostało, cienka obręcz to dokładny postęp z jasnym czołem, a po skali biegnie sekundnik.
 
 import { clamp, onMediaChange } from './dom.js';
 import { OrbCore } from './orb-core.js';
@@ -16,6 +18,7 @@ const RELEASE = 0.08;
 const LEVEL_TIMEOUT_MS = 300; // starszy pomiar traktujemy jak ciszę
 const SYNTHETIC_AFTER_MS = 1200; // mówienie bez pomiarów TTS → łagodna animacja zastępcza
 const WHITE = [255, 255, 255];
+const DARK = [2, 9, 16];
 // W spokojnych stanach wystarczy ~30 fps – oszczędza procesor (np. na Raspberry Pi).
 const CALM_STATES = new Set(['idle', 'muted', 'offline']);
 const CALM_FRAME_MS = 1000 / 30;
@@ -74,6 +77,9 @@ export class Orb {
     this.intro = 1; // 0 → 1 podczas rozkładania HUD
     this.introStart = 0;
     this.introMs = 0;
+    this.timerSource = null; // (now) → {progress, elapsed, paused, ringing, editing} | null
+    this.timerInfo = null;
+    this.timerMix = 0; // 0 → 1 przy pojawieniu się minutnika
 
     this.cos = new Float32Array(POINTS);
     this.sin = new Float32Array(POINTS);
@@ -115,6 +121,11 @@ export class Orb {
   setActive(active) {
     this.active = Boolean(active);
     this._updateRunning();
+  }
+
+  /** Źródło stanu minutnika – wywoływane co klatkę; null = bez minutnika. */
+  setTimer(source) {
+    this.timerSource = typeof source === 'function' ? source : null;
   }
 
   /** Rozkłada HUD wokół kuli: segmenty zapalają się po kolei, skala rysuje się dookoła. */
@@ -163,7 +174,9 @@ export class Orb {
   _frame(now) {
     if (!this.running) return;
     this.raf = requestAnimationFrame(this._frame);
-    const calm = CALM_STATES.has(this.state) && this.level < 0.01 && this.look.swirl < 0.02 && this.intro >= 1;
+    const settled = this.timerInfo ? this.timerMix > 0.99 && !this.timerInfo.ringing : this.timerMix === 0;
+    const calm =
+      CALM_STATES.has(this.state) && this.level < 0.01 && this.look.swirl < 0.02 && this.intro >= 1 && settled;
     if (calm && now - this.lastTime < CALM_FRAME_MS - 2) return;
     const dt = Math.min(0.1, Math.max(0.001, (now - this.lastTime) / 1000));
     this.lastTime = now;
@@ -191,6 +204,14 @@ export class Orb {
     const drift = dt * (1 + this.level * 3 + look.swirl * 2.5) * m;
     for (const p of this.particles) p.angle += p.speed * drift;
     if (this.intro < 1) this.intro = clamp((now - this.introStart) / this.introMs, 0, 1);
+
+    const timer = this.timerSource ? this.timerSource(now) : null;
+    if (timer) this.timerInfo = timer;
+    this.timerMix += ((timer ? 1 : 0) - this.timerMix) * (1 - Math.exp(-dt * 4.5));
+    if (!timer && this.timerMix < 0.003) {
+      this.timerMix = 0;
+      this.timerInfo = null;
+    }
   }
 
   _levelTarget(now) {
@@ -218,8 +239,11 @@ export class Orb {
     const m = this.motion;
     const lvl = this.level * look.react;
     const intro = easeOut(this.intro);
+    const tm = this.timerMix;
+    // koniec minutnika: kula pulsuje dwa razy na sekundę
+    const pulse = this.timerInfo && this.timerInfo.ringing ? 0.5 + 0.5 * Math.sin(now * 0.0126) : 0;
     // przy rozkładaniu kula na moment rozbłyska
-    const b = look.brightness * (1 + 0.55 * (1 - intro) * (1 - intro));
+    const b = look.brightness * (1 + 0.55 * (1 - intro) * (1 - intro)) * (1 + pulse * 0.4 * tm);
     const radius = base * SPHERE * (1 + Math.sin(this.breathPhase) * look.breath + lvl * 0.2 * m);
     const amp = base * (look.deform + lvl * 0.12) * m;
     const haloR = base * (2.3 + lvl * 0.6);
@@ -235,18 +259,20 @@ export class Orb {
         halo: haloR / radius,
         core: look.core,
         glow: look.glow,
+        hollow: tm * (0.9 - pulse * 0.45),
       });
     }
 
     ctx.globalCompositeOperation = 'lighter';
     if (!this.core || this.core.lost) this._drawHalo(cx, cy, radius, haloR, b);
-    this._drawReactor(cx, cy, base, lvl, b, intro);
+    this._drawReactor(cx, cy, base, lvl, b, intro, now, pulse);
     if (look.swirl > 0.02) this._drawArcs(cx, cy, base, look.swirl * b * intro);
-    this._drawScale(cx, cy, base, lvl, b, intro, compact);
+    this._drawScale(cx, cy, base, lvl, b, intro, compact, pulse);
     this._drawRings(cx, cy, base, lvl, b, intro);
     this._drawParticles(cx, cy, base, lvl, b * intro, now, compact);
     if (!this.core || this.core.lost) this._drawBlob(cx, cy, radius, amp, lvl, b);
     ctx.globalCompositeOperation = 'source-over';
+    if ((!this.core || this.core.lost) && tm > 0.01) this._drawLens(cx, cy, radius, tm);
   }
 
   _drawHalo(cx, cy, radius, haloR, b) {
@@ -261,14 +287,25 @@ export class Orb {
     ctx.fill();
   }
 
-  /** Pierścień z dziesięciu cewek jak w reaktorze łukowym – świecą od głosu i od „myślenia”. */
-  _drawReactor(cx, cy, base, lvl, b, intro) {
-    const { ctx, look } = this;
+  /**
+   * Pierścień z dziesięciu cewek jak w reaktorze łukowym – świecą od głosu i od „myślenia”. Przy minutniku
+   * cewki stają (w najbliższym ustawieniu od góry) i od góry, zgodnie z ruchem wskazówek zegara, świeci ich
+   * tyle, ile zostało czasu; ostatnia zapalona – tylko w części.
+   */
+  _drawReactor(cx, cy, base, lvl, b, intro, now, pulse) {
+    const { ctx, look, timerMix: tm, timerInfo: timer } = this;
     const inner = base * (1.08 + lvl * 0.16);
     const outer = inner + base * 0.14;
-    const turn = this.spin * 0.08 - Math.PI / 2;
     const slot = TAU / SEGMENTS;
+    const free = this.spin * 0.08 - Math.PI / 2;
+    const k = Math.round((free + Math.PI / 2) / slot);
+    const turn = free - (free + Math.PI / 2 - k * slot) * tm;
     const hot = mix(look.core, WHITE, 0.45);
+    const progress = timer ? timer.progress : 0;
+    let gauge = 0.85;
+    if (!timer) gauge = 0;
+    else if (timer.ringing) gauge = 0.25 + 0.75 * pulse;
+    else if (timer.paused) gauge = 0.5 + 0.18 * Math.sin(now * 0.004);
     ctx.lineWidth = 1;
     for (let i = 0; i < SEGMENTS; i++) {
       // przy rozkładaniu cewki zapalają się po kolei, zgodnie z ruchem wskazówek zegara
@@ -280,20 +317,50 @@ export class Orb {
       const shimmer = 0.1 * Math.pow(Math.max(0, Math.cos(mid - this.phase * 0.45)), 4);
       const voice = lvl * (0.55 + 0.45 * (0.5 + 0.5 * Math.sin(i * 2.1 + this.phase * 3.2)));
       const chase = look.swirl * 0.9 * Math.pow(Math.max(0, Math.cos(mid - this.spin * 2.4)), 8);
-      const lit = clamp(0.1 + shimmer + voice * 0.75 + chase, 0, 1) * appear;
-      ctx.beginPath();
-      ctx.arc(cx, cy, outer, a0, a1);
-      ctx.arc(cx, cy, inner, a1, a0, true);
-      ctx.closePath();
-      ctx.fillStyle = rgba(mix(look.core, hot, lit), lit * 0.55 * b);
-      ctx.fill();
-      ctx.strokeStyle = rgba(look.core, clamp(0.18 + lit * 0.9, 0, 1) * b * appear);
-      ctx.stroke();
+      const own = clamp(0.1 + shimmer + voice * 0.75 + chase, 0, 1);
+      this._coil(cx, cy, inner, outer, a0, a1, (own * (1 - tm) + 0.05 * tm) * appear, hot, b, appear);
+      if (tm < 0.001 || !timer) continue;
+      const j = (((i + k) % SEGMENTS) + SEGMENTS) % SEGMENTS; // która to cewka, licząc od góry
+      const fill = timer.ringing ? 1 : clamp(progress * SEGMENTS - j, 0, 1);
+      if (fill > 0) this._coil(cx, cy, inner, outer, a0, a0 + (a1 - a0) * fill, gauge * tm * appear, hot, b, tm * appear);
     }
-    // cienka obręcz wewnątrz cewek
+    // cienka obręcz wewnątrz cewek; przy minutniku – dokładny postęp z jasnym czołem
+    const hoop = inner - base * 0.05;
     ctx.beginPath();
-    ctx.arc(cx, cy, inner - base * 0.05, 0, TAU * intro);
-    ctx.strokeStyle = rgba(look.core, 0.22 * b);
+    ctx.arc(cx, cy, hoop, 0, TAU * intro);
+    ctx.strokeStyle = rgba(look.core, 0.22 * b * (1 - 0.5 * tm));
+    ctx.stroke();
+    if (tm < 0.01 || !timer || timer.ringing || progress <= 0) return;
+    const top = -Math.PI / 2;
+    const end = top + progress * TAU;
+    ctx.lineWidth = base < 40 ? 1.2 : 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, hoop, top, end);
+    ctx.strokeStyle = rgba(hot, 0.85 * tm * b * (timer.paused ? 0.6 : 1));
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    const hx = cx + Math.cos(end) * hoop;
+    const hy = cy + Math.sin(end) * hoop;
+    const r = Math.max(4, base * 0.1);
+    const head = ctx.createRadialGradient(hx, hy, 0, hx, hy, r);
+    head.addColorStop(0, rgba(WHITE, 0.95 * tm * b));
+    head.addColorStop(0.3, rgba(look.core, 0.55 * tm * b));
+    head.addColorStop(1, rgba(look.core, 0));
+    ctx.fillStyle = head;
+    ctx.beginPath();
+    ctx.arc(hx, hy, r, 0, TAU);
+    ctx.fill();
+  }
+
+  _coil(cx, cy, inner, outer, a0, a1, lit, hot, b, edge) {
+    const { ctx, look } = this;
+    ctx.beginPath();
+    ctx.arc(cx, cy, outer, a0, a1);
+    ctx.arc(cx, cy, inner, a1, a0, true);
+    ctx.closePath();
+    ctx.fillStyle = rgba(mix(look.core, hot, lit), lit * 0.55 * b);
+    ctx.fill();
+    ctx.strokeStyle = rgba(look.core, clamp(0.18 + lit * 0.9, 0, 1) * b * edge);
     ctx.stroke();
   }
 
@@ -311,16 +378,22 @@ export class Orb {
     ctx.lineCap = 'butt';
   }
 
-  /** Skala z kreskami – przy dźwięku wydłużają się jak wskaźnik wysterowania. */
-  _drawScale(cx, cy, base, lvl, b, intro, compact) {
-    const { ctx, look } = this;
+  /**
+   * Skala z kreskami – przy dźwięku wydłużają się jak wskaźnik wysterowania. Przy minutniku skala staje
+   * (długa kreska u góry), a po kreskach co sekundę przeskakuje jasny sekundnik ze smugą.
+   */
+  _drawScale(cx, cy, base, lvl, b, intro, compact, pulse) {
+    const { ctx, look, timerMix: tm, timerInfo: timer } = this;
     const ticks = compact ? 60 : 120;
     const shown = Math.floor(ticks * intro); // przy rozkładaniu skala rysuje się dookoła
     const r0 = base * 1.58;
+    const tick = TAU / ticks;
+    const free = this.spin * 0.12;
+    const rot = free - (free - Math.round(free / (tick * 10)) * tick * 10) * tm;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i < shown; i++) {
-      const angle = (i / ticks) * TAU + this.spin * 0.12 - Math.PI / 2;
+      const angle = i * tick + rot - Math.PI / 2;
       const wave = 0.5 + 0.5 * Math.sin(i * 0.55 + this.phase * 2.2);
       const len = (i % 10 === 0 ? 6 : 2.5) + lvl * 14 * wave * wave;
       const c = Math.cos(angle);
@@ -328,8 +401,30 @@ export class Orb {
       ctx.moveTo(cx + c * r0, cy + s * r0);
       ctx.lineTo(cx + c * (r0 + len), cy + s * (r0 + len));
     }
-    ctx.strokeStyle = rgba(look.core, 0.28 * b);
+    ctx.strokeStyle = rgba(look.core, (0.28 + 0.4 * pulse * tm) * b);
     ctx.stroke();
+
+    if (tm < 0.01 || !timer || timer.elapsed == null || timer.ringing) return;
+    // sekundnik liczy czas, który minął – idzie zgodnie z ruchem wskazówek i przeskakuje co sekundę
+    const whole = Math.floor(timer.elapsed + 1e-6);
+    const pos = whole - 1 + easeOut(clamp((timer.elapsed - whole) * 6, 0, 1));
+    const hand = ((((pos % 60) + 60) % 60) / 60) * TAU;
+    const hot = mix(look.core, WHITE, 0.6);
+    const dim = timer.paused ? 0.5 : 1;
+    for (let i = 0; i < shown; i++) {
+      const behind = (((hand - i * tick) % TAU) + TAU) % TAU; // smuga za sekundnikiem
+      const glow = behind < tick * 0.5 ? 1 : Math.exp(-behind * 7);
+      if (glow < 0.04) continue;
+      const angle = i * tick + rot - Math.PI / 2;
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      const len = (i % 10 === 0 ? 6 : 2.5) + 5 * glow;
+      ctx.beginPath();
+      ctx.moveTo(cx + c * (r0 - 1), cy + s * (r0 - 1));
+      ctx.lineTo(cx + c * (r0 + len), cy + s * (r0 + len));
+      ctx.strokeStyle = rgba(hot, 0.95 * glow * tm * b * dim);
+      ctx.stroke();
+    }
   }
 
   _drawRings(cx, cy, base, lvl, b, intro) {
@@ -358,6 +453,19 @@ export class Orb {
       ctx.fillRect(x - p.size / 2, y - p.size / 2, p.size, p.size);
     }
     ctx.globalAlpha = 1;
+  }
+
+  /** Ciemny środek pod cyframi minutnika – w 2D (z WebGL robi to shader). */
+  _drawLens(cx, cy, radius, tm) {
+    const { ctx } = this;
+    const lens = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    lens.addColorStop(0, rgba(DARK, 0.86 * tm));
+    lens.addColorStop(0.55, rgba(DARK, 0.7 * tm));
+    lens.addColorStop(1, rgba(DARK, 0));
+    ctx.fillStyle = lens;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, TAU);
+    ctx.fill();
   }
 
   /** Kula w 2D – tylko gdy nie ma WebGL. */

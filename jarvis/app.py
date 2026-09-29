@@ -18,6 +18,7 @@ from jarvis.services.domownik_client import DomownikClient
 from jarvis.services.domownik_server import DomownikServer
 from jarvis.services.inbox import Inbox
 from jarvis.services.messenger import MessengerService
+from jarvis.services.timers import Timers
 from jarvis.settings import Secrets, SettingsStore
 from jarvis.state import StatusTracker
 from jarvis.tools import ToolContext
@@ -57,6 +58,7 @@ class JarvisApp:
             lambda: providers_from(self.settings.get(), self.secrets),
             on_limit_wait=lambda s: self.bus.notice(f"Limit zapytań do modelu – czekam {s:.0f} s…", "warning"),
         )
+        self.timers = Timers(self.bus, self.announce)  # odliczanie w kuli; mówi, gdy minie czas
         tool_context = ToolContext(
             settings=self.settings,
             bus=self.bus,
@@ -65,7 +67,8 @@ class JarvisApp:
             messenger=self.messenger,
             inbox=self.inbox,
             conversation=self.conversation,
-            announce=self.announce,  # minutnik mówi, gdy minie czas
+            announce=self.announce,
+            timers=self.timers,
         )
         self.assistant = Assistant(self.llm, tool_context, self.settings, self.bus, self.conversation)
         self.stop_event = threading.Event()

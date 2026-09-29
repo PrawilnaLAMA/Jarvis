@@ -51,6 +51,8 @@
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
     <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16M9.9 5.8A9.5 9.5 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.6 3.4M6.4 7.6A15.6 15.6 0 0 0 2.5 12S6 18.5 12 18.5a9.2 9.2 0 0 0 4-.9M9.9 9.9a3 3 0 0 0 4.2 4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 2.5h5M12 2.5V6M18.2 7.3l1.3-1.3"/></g></symbol>
     <symbol id="i-collapse" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5V4h5.5M20 9.5V4h-5.5M4 14.5V20h5.5M20 14.5V20h-5.5"/><circle cx="12" cy="12" r="2.6"/></g></symbol>
     <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M7.2 6.6a7 7 0 1 0 9.6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -60,6 +62,7 @@
   <div class="desk-orb pywebview-drag-region" id="desk-orb" role="button" tabindex="0" aria-label="Rozwiń Jarvisa"
        title="Kliknij – rozwiń Jarvisa. Przeciągnij – przenieś. Prawy przycisk – menu.">
     <canvas id="desk-orb-canvas" aria-hidden="true"></canvas>
+    <div class="orb-face orb-face-mini" id="desk-orb-face" aria-hidden="true" hidden><div class="clock"></div></div>
   </div>
 
   <header class="topbar pywebview-drag-region">
@@ -103,6 +106,19 @@
 
         <div class="orb-wrap" id="orb-wrap">
           <canvas id="orb" aria-hidden="true"></canvas>
+          <!-- Minutnik w środku kuli: odliczanie albo nastawianie co do sekundy (js/timer.js) -->
+          <div class="orb-face" id="orb-face" hidden>
+            <div class="face-top">
+              <p class="face-label" id="face-label"></p>
+              <input class="face-name" id="face-name" type="text" maxlength="40" placeholder="Nazwa" aria-label="Nazwa minutnika" autocomplete="off" spellcheck="false" hidden>
+            </div>
+            <div class="clock" id="face-clock" role="timer"></div>
+            <div class="clock clock-edit" id="face-edit" role="group" aria-label="Czas minutnika" hidden></div>
+            <p class="face-bottom">
+              <span class="face-status" id="face-status" aria-live="polite"></span>
+              <button type="button" class="face-more" id="face-more" title="Pokaż następny minutnik" hidden></button>
+            </p>
+          </div>
         </div>
 
         <div class="captions" id="captions">
@@ -117,7 +133,7 @@
           <p class="sr-only" id="subtitle-live" aria-live="polite"></p>
         </div>
 
-        <div class="controls" role="group" aria-label="Sterowanie głosem">
+        <div class="controls" id="controls" role="group" aria-label="Sterowanie głosem">
           <button type="button" class="ctrl ctrl-round" id="btn-mic" aria-label="Wycisz mikrofon" aria-pressed="false" title="Wycisz mikrofon" disabled>
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-mic"/></svg>
           </button>
@@ -129,10 +145,35 @@
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-stop"/></svg>
             <span>Przerwij</span>
           </button>
+          <div class="timer-group" role="group" aria-label="Minutnik">
+            <button type="button" class="ctrl ctrl-round" id="btn-timer" aria-label="Minutnik" title="Nastaw minutnik">
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-timer"/></svg>
+            </button>
+            <span class="timer-actions" id="timer-actions" hidden>
+              <button type="button" class="ctrl ctrl-round ctrl-sub" id="timer-pause" aria-label="Wstrzymaj minutnik">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-pause"/></svg>
+              </button>
+              <button type="button" class="ctrl ctrl-sub" id="timer-add">+1 min</button>
+              <button type="button" class="ctrl ctrl-round ctrl-sub" id="timer-cancel" aria-label="Anuluj minutnik" title="Anuluj minutnik">
+                <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg>
+              </button>
+            </span>
+          </div>
           <button type="button" class="ctrl chat-toggle" id="btn-chat" aria-controls="chat" aria-expanded="false">
             <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg>
             <span>Czat</span>
             <span class="badge" id="chat-badge" hidden></span>
+          </button>
+        </div>
+
+        <div class="controls timer-edit-controls" id="timer-edit-controls" role="group" aria-label="Nastawianie minutnika" hidden>
+          <button type="button" class="ctrl" id="timer-edit-cancel">Anuluj</button>
+          <button type="button" class="ctrl ctrl-sub" data-add="30">+30 s</button>
+          <button type="button" class="ctrl ctrl-sub" data-add="60">+1 min</button>
+          <button type="button" class="ctrl ctrl-sub" data-add="300">+5 min</button>
+          <button type="button" class="ctrl ctrl-primary" id="timer-start">
+            <svg class="icon" aria-hidden="true" focusable="false"><use href="#i-play"/></svg>
+            <span>Start</span>
           </button>
         </div>
       </div>
