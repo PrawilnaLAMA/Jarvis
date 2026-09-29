@@ -22,13 +22,18 @@ def test_fit_rect_shrinks_to_small_screen():
     assert fit_rect(400, 240, 1180, 760, (0, 0, 800, 480)) == (16, 16, 768, 448)
 
 
-def test_placement_puts_big_orb_on_the_small_one():
-    big = (413.0, 340.0)  # środek dużej kuli w oknie 1180×760
-    x, y, w, h = placement((960, 516), big, (1180, 760), WORK)
-    assert (x + big[0], y + big[1]) == (960, 516)
-    # przy krawędzi okno zostaje na ekranie, a kulka i tak jest w środku okna
-    x, y, w, h = placement((1880, 60), big, (1180, 760), WORK)
-    assert x + w <= 1920 - 16 and y >= 16 and x <= 1880 <= x + w and y <= 60 <= y + h
+def test_placement_centers_window_on_the_orbs_screen():
+    centered = (370, 136, 1180, 760)
+    assert placement((960, 516), (1180, 760), WORK, 56) == centered
+    assert placement((600, 300), (1180, 760), WORK, 56) == centered  # kulka obok środka – okno i tak na środku
+    second = (-1920, 0, 1536, 816)  # kulka na drugim monitorze – okno na jego środku
+    assert placement((-1150, 413), (1180, 760), second, 56) == (-1920 + 178, 28, 1180, 760)
+
+
+def test_placement_follows_orb_far_from_center():
+    # kulka w rogu nie zmieściłaby się w oknie na środku – okno staje wokół niej, na ekranie
+    x, y, w, h = placement((1880, 60), (1180, 760), WORK, 56)
+    assert (x + w, y) == (1920 - 16, 16) and x <= 1880 <= x + w and y <= 60 <= y + h
 
 
 @pytest.mark.parametrize("cx, cy", [(0, 0), (413, 340), (1180, 760), (590, 380)])

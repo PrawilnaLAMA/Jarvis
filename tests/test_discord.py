@@ -2,6 +2,7 @@ import pytest
 
 from jarvis.services.discord_client import DiscordClient, DiscordError
 from jarvis.services.discord_monitor import DiscordMonitor
+from jarvis.services.inbox import Inbox
 from jarvis.settings import SettingsStore
 
 
@@ -33,11 +34,19 @@ class FakeSession:
         if method == "POST":
             self.sent.append((channel, json["content"]))
             return FakeResponse(200, {"id": "new"})
-        return FakeResponse(200, self.channels.get(channel, [])[:1])
+        messages = self.channels.get(channel, [])
+        if "after" in params:  # jak Discord: najstarsze `limit` po podanej, ale ułożone od najnowszej
+            newer = [m for m in messages if int(m["id"]) > int(params["after"])]
+            return FakeResponse(200, newer[-params["limit"]:])
+        return FakeResponse(200, messages[: params["limit"]])
+
+    def post(self, channel: str, *messages: dict) -> None:
+        for message in messages:
+            self.channels.setdefault(channel, []).insert(0, message)
 
 
-def msg(msg_id: str, author: str, content: str) -> dict:
-    return {"id": msg_id, "author": {"id": author}, "content": content}
+def msg(msg_id: str, author: str, content: str, type_: int = 0) -> dict:
+    return {"id": msg_id, "author": {"id": author}, "content": content, "type": type_}
 
 
 @pytest.fixture
@@ -121,3 +130,36 @@ def test_monitor_announces_only_new_foreign_messages(tmp_path, bus, recorder, se
     assert spoken == ["Piotrek pisze: gramy?"]
     assert len(recorder.of("discord.message")) == 2
     assert inbox.last().contact == "PIOTREK" and inbox.last_app_of("PIOTREK") == "discord"
+
+
+def test_monitor_reads_every_new_message_and_names_author_once(tmp_path, bus, recorder, session, client, spoken):
+    settings = SettingsStore(tmp_path / "s.json")
+    settings.update({"contacts": [{"name": "PIOTREK", "channel_id": "111111"}]})
+    now = [1000.0]
+    inbox = Inbox(bus, spoken.append, clock=lambda: now[0])
+    monitor = DiscordMonitor(client, settings, bus, inbox)
+    session.post("111111", msg("1", "other", "stara wiadomość"))
+    monitor.poll_once()
+
+    # trzy wiadomości szybko po sobie (między dwoma odpytaniami) – wszystkie, po kolei, jednym komunikatem
+    session.post("111111", msg("2", "other", "hej"), msg("3", "other", "kupisz mleko?"), msg("4", "other", ""))
+    assert monitor.poll_once() == ["Piotrek pisze: hej. kupisz mleko? Do tego załącznik."]
+    assert [m["content"] for m in recorder.of("discord.message")] == ["hej", "kupisz mleko?", ""]
+
+    now[0] += 20  # ta sama osoba pisze dalej – już bez imienia
+    session.post("111111", msg("5", "other", "i chleb"))
+    assert monitor.poll_once() == ["i chleb"]
+    assert inbox.last().content == "hej. kupisz mleko? (załącznik). i chleb"
+
+    # odpowiedź użytkownika (np. z telefonu) i wpis systemowy w środku – potem znowu z imieniem
+    session.post("111111", msg("6", "me", "ok"), msg("7", "other", "", type_=6), msg("8", "other", "dzięki"))
+    assert monitor.poll_once() == ["Piotrek pisze: dzięki"]
+
+    bus.publish("transcript", text="jaka jest pogoda", source="voice")  # rozmowa z Jarvisem przerywa ciąg
+    session.post("111111", msg("9", "other", "jesteś?"))
+    assert monitor.poll_once() == ["Piotrek pisze: jesteś?"]
+
+    now[0] += 600  # po dłuższej przerwie też
+    session.post("111111", msg("10", "other", "halo"))
+    assert monitor.poll_once() == ["Piotrek pisze: halo"]
+    assert len(spoken) == 5

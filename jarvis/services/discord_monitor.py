@@ -16,6 +16,8 @@ log = logging.getLogger(__name__)
 # ponawiamy po cichu. Komunikat pokazujemy dopiero, gdy nie odpowiada dłużej niż tyle sekund.
 OUTAGE_SECONDS = 120
 MAX_BACKOFF_SECONDS = 60
+# zwykłe wiadomości i odpowiedzi; reszta (połączenia, przypięcia, dołączenia) to wpisy systemowe
+USER_MESSAGE_TYPES = {0, 19}
 
 
 class DiscordMonitor:
@@ -33,13 +35,14 @@ class DiscordMonitor:
         self._inbox = inbox
         self._clock = clock
         self._last_ids: dict[str, str | None] = {}
+        self._last_authors: dict[str, str | None] = {}  # kto napisał ostatnią wiadomość w kanale
         self._last_error = ""  # trwały błąd (np. zły token) zgłoszony już raz
         self._failures = 0  # kolejne chwilowe błędy z rzędu
         self._failing_since: float | None = None
         self._outage_reported = False
 
     def poll_once(self) -> list[str]:
-        """Sprawdza każdy kanał raz; zwraca teksty ogłoszonych wiadomości."""
+        """Sprawdza każdy kanał raz; zwraca teksty ogłoszeń (jedno na ciąg wiadomości jednej osoby)."""
         settings = self._settings.get()
         my_id = self._client.me()["id"]
         announced = []
@@ -47,19 +50,34 @@ class DiscordMonitor:
             channel_id = contact.channel_id.strip()
             if not channel_id:
                 continue  # kontakt tylko z Messengera
-            message = self._client.latest_message(channel_id)
-            msg_id = message["id"] if message else None
             if channel_id not in self._last_ids:
                 # pierwszy odczyt kanału – zapamiętujemy stan bez ogłaszania starych wiadomości
-                self._last_ids[channel_id] = msg_id
+                message = self._client.latest_message(channel_id)
+                self._last_ids[channel_id] = message["id"] if message else None
+                self._last_authors[channel_id] = message["author"]["id"] if message else None
                 continue
-            if not message or msg_id == self._last_ids[channel_id]:
+            messages = self._client.messages_after(channel_id, self._last_ids[channel_id])
+            if not messages:
                 continue
-            self._last_ids[channel_id] = msg_id
-            if message["author"]["id"] == my_id:
-                continue
-            content = message.get("content", "")
-            announced.append(self._inbox.receive("discord", contact, content, settings.discord.read_aloud))
+            self._last_ids[channel_id] = messages[-1]["id"]
+            # kilka wiadomości szybko po sobie czytamy wszystkie, po kolei; imię tylko, gdy zmienia się piszący
+            runs: list[tuple[str, list[str]]] = []  # (autor, treści) – kolejne wiadomości jednej osoby
+            for message in messages:
+                if message.get("type", 0) not in USER_MESSAGE_TYPES:
+                    continue
+                author, content = message["author"]["id"], message.get("content", "")
+                if runs and runs[-1][0] == author:
+                    runs[-1][1].append(content)
+                else:
+                    runs.append((author, [content]))
+            for author, contents in runs:
+                if author != self._last_authors.get(channel_id):
+                    self._inbox.end_run()  # odpisał użytkownik albo (w grupie) napisał ktoś inny
+                self._last_authors[channel_id] = author
+                if author != my_id:
+                    announced.append(
+                        self._inbox.receive_many("discord", contact, contents, settings.discord.read_aloud)
+                    )
         return announced
 
     def check(self) -> float:

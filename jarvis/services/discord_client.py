@@ -66,3 +66,11 @@ class DiscordClient:
     def latest_message(self, channel_id: str) -> dict[str, Any] | None:
         messages = self._request("GET", f"/channels/{channel_id}/messages", params={"limit": 1})
         return messages[0] if messages else None
+
+    def messages_after(self, channel_id: str, after: str | None, limit: int = 20) -> list[dict[str, Any]]:
+        """Wiadomości nowsze niż `after` (bez niego: ostatnie), od najstarszej."""
+        params: dict[str, Any] = {"limit": limit}
+        if after:
+            params["after"] = after
+        messages = self._request("GET", f"/channels/{channel_id}/messages", params=params) or []
+        return sorted(messages, key=lambda m: int(m["id"]))  # id Discorda rosną z czasem

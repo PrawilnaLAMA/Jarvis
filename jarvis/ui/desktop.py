@@ -36,23 +36,13 @@ log = logging.getLogger(__name__)
 
 ORB_SIZE = 112  # średnica kulki przy 100% skalowania
 FULL_SIZE = (1180, 760)
-BIG_ORB = (0.35, 0.448)  # typowy środek dużej kuli w widoku Jarvis (ułamek okna), zanim ją zmierzymy
 SCREEN_MARGIN = 16
 ANIMATION_SECONDS = 0.26
 WATCH_SECONDS = 0.2
-LAYOUT_TIMEOUT = 0.6
 DESKTOP_CLASSES = ("Progman", "WorkerW")  # okna pulpitu Eksploratora
 # pasek zadań, Start, Alt+Tab i wysuwane panele – nie zmieniają tego, czy kulka jest nad oknami
 NEUTRAL_CLASSES = ("Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Windows.UI.Core.CoreWindow",
                    "XamlExplorerHostIslandWindow", "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland")
-
-# Środek dużej kuli z widoku Jarvis w pikselach okna – albo null, gdy widać inny widok.
-_BIG_ORB_JS = """(function () {
-  var box = document.getElementById('orb-wrap');
-  var r = box && box.getBoundingClientRect();
-  var k = window.devicePixelRatio || 1;
-  return r && r.width > 0 ? [(r.left + r.width / 2) * k, (r.top + r.height / 2) * k] : null;
-})()"""
 
 Rect = tuple[int, int, int, int]  # x, y, szerokość, wysokość
 
@@ -70,11 +60,16 @@ def fit_rect(cx: float, cy: float, width: int, height: int, work: Rect, margin: 
     return x, y, width, height
 
 
-def placement(home: tuple[float, float], big: tuple[float, float], size: tuple[int, int], work: Rect) -> Rect:
-    """Pełne okno ustawione tak, żeby duża kula z widoku Jarvis wypadła w miejscu kulki (home) – o ile mieści się
-    na ekranie; kulka rozwija się wtedy „z siebie”."""
+def placement(home: tuple[float, float], size: tuple[int, int], work: Rect, orb_radius: float = 0) -> Rect:
+    """Pełne okno na środku ekranu kulki. Kulka (środek home) musi się w nim zmieścić, bo rozwija się „z siebie” –
+    gdy leży dalej od środka (np. w rogu), okno stoi wokół niej."""
     width, height = size
-    return fit_rect(home[0] - big[0] + width / 2, home[1] - big[1] + height / 2, width, height, work)
+    wx, wy, ww, wh = work
+    x, y, w, h = centered = fit_rect(wx + ww / 2, wy + wh / 2, width, height, work)
+    r = orb_radius
+    if x + r <= home[0] <= x + w - r and y + r <= home[1] <= y + h - r:
+        return centered
+    return fit_rect(home[0], home[1], width, height, work)
 
 
 def cover_radius(cx: float, cy: float, width: int, height: int) -> float:
@@ -182,11 +177,8 @@ class DesktopWindow:
         self._scale = (self._user32.GetDpiForSystem() or 96) / 96
         self._orb = round(ORB_SIZE * self._scale)
         self._full = (round(FULL_SIZE[0] * self._scale), round(FULL_SIZE[1] * self._scale))
-        state = read_json(state_file, {})
-        big = state.get("big")
-        self._big_ratio = tuple(big) if _pair(big, float) and all(0 < v < 1 for v in big) else BIG_ORB
-        home = self._valid_home(state.get("orb"))
-        self.rect = placement(home, self._big_estimate(self._full), self._full, self._work_at(home))
+        home = self._valid_home(read_json(state_file, {}).get("orb"))
+        self.rect = placement(home, self._full, self._work_at(home), self._orb / 2)
         self.offset = (home[0] - self.rect[0], home[1] - self.rect[1])  # środek kulki w oknie
 
     def create(self, webview, url: str):
@@ -230,10 +222,9 @@ class DesktopWindow:
             x, y, w, h = self._rect()
             ox, oy = self.offset
             home = (x + ox, y + oy)
-            big = self._measure_big_orb(w, h)
-            tx, ty, _, _ = placement(home, big, (w, h), self._work_at(home))
+            tx, ty, _, _ = placement(home, (w, h), self._work_at(home), self._orb / 2)
             if (tx, ty) != (x, y):
-                # pełne okno nie mieści się na ekranie wokół kulki – przestawiamy je (kulka na mgnienie znika)
+                # kulkę przeciągnięto razem z oknem – okno wraca na środek ekranu (kulka na mgnienie znika)
                 self._set_region(ox, oy, 1)
                 self._user32.SetWindowPos(self.hwnd, None, tx, ty, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
                 ox, oy = self.offset = (home[0] - tx, home[1] - ty)
@@ -401,34 +392,16 @@ class DesktopWindow:
     def _place_orb(self, home: tuple[float, float]) -> None:
         """Przestawia okno tak, żeby kulka stała w `home` (np. gdy zniknęła za krawędzią ekranu)."""
         _, _, w, h = self._rect()
-        x, y, w, h = placement(home, self._big_estimate((w, h)), (w, h), self._work_at(home))
+        x, y, w, h = placement(home, (w, h), self._work_at(home), self._orb / 2)
         self._set_region(*self.offset, 1)
         self._user32.SetWindowPos(self.hwnd, None, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
         self.offset = (home[0] - x, home[1] - y)
         self._send_orb()
         self._set_region(*self.offset, self._orb / 2)
 
-    def _measure_big_orb(self, w: int, h: int) -> tuple[float, float]:
-        """Środek dużej kuli (piksele okna); pomiar zapamiętujemy, bo przyda się przy następnym starcie."""
-        try:
-            value = self.window.evaluate_js(_BIG_ORB_JS)
-        except Exception:
-            value = None
-        if _pair(value, (int, float)):
-            ratio = (value[0] / w, value[1] / h)
-            if all(0 < v < 1 for v in ratio) and ratio != self._big_ratio:
-                self._big_ratio = ratio
-                self._save_home()
-            return float(value[0]), float(value[1])
-        return self._big_estimate((w, h))
-
-    def _big_estimate(self, size: tuple[int, int]) -> tuple[float, float]:
-        return self._big_ratio[0] * size[0], self._big_ratio[1] * size[1]
-
     def _save_home(self) -> None:
         x, y, _, _ = self._rect() if self.hwnd else self.rect
-        home = [round(x + self.offset[0]), round(y + self.offset[1])]
-        write_json(self._state_file, {"orb": home, "big": [round(v, 4) for v in self._big_ratio]})
+        write_json(self._state_file, {"orb": [round(x + self.offset[0]), round(y + self.offset[1])]})
 
     def _valid_home(self, saved: Any) -> tuple[float, float]:
         """Zapamiętany środek kulki – o ile nadal leży na którymś ekranie; inaczej środek głównego ekranu."""
