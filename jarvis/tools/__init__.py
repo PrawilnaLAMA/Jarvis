@@ -6,11 +6,11 @@ i dopisanie modułu poniżej. Zwrócony tekst jest wypowiadany (albo wraca do mo
 """
 
 from jarvis.settings import Settings
-from jarvis.tools import domownik, messaging, system, web
+from jarvis.tools import computer, domownik, messaging, system, web
 from jarvis.tools.base import Tool, ToolContext, ToolError
 
 __all__ = ["Tool", "ToolContext", "ToolError", "build_tools"]
 
 
 def build_tools(settings: Settings) -> list[Tool]:
-    return [*web.tools(), *messaging.tools(settings), *domownik.tools(), *system.tools()]
+    return [*web.tools(), *messaging.tools(settings), *domownik.tools(), *system.tools(), *computer.tools()]

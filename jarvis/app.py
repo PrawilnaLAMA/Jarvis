@@ -65,6 +65,7 @@ class JarvisApp:
             messenger=self.messenger,
             inbox=self.inbox,
             conversation=self.conversation,
+            announce=self.announce,  # minutnik mówi, gdy minie czas
         )
         self.assistant = Assistant(self.llm, tool_context, self.settings, self.bus, self.conversation)
         self.stop_event = threading.Event()

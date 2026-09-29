@@ -244,6 +244,11 @@ class MessengerService:
 
     # --- stan ---
 
+    @property
+    def profile_dir(self) -> Path:
+        """Profil przeglądarki Messengera – po nim poznajemy jej okno (np. „zamknij Chrome” go omija)."""
+        return self._profile_dir
+
     def status(self) -> dict[str, Any]:
         return {"enabled": self._settings.get().messenger.enabled, "state": self._state, "error": self._error}
 

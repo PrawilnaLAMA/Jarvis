@@ -46,6 +46,16 @@ The window stands centered on the orb's monitor, unless the orb is too far from 
 
 **Command understanding.** `assistant.Assistant.handle()` makes one LLM call with function calling (Groq `openai/gpt-oss-120b` via `llm.LLMClient`, with fallback to Cerebras on 429). Tools live in `jarvis/tools/`. To add one, write `handler(ctx, args) -> str`, add a `Tool(...)` to that module's `tools()`, and register the module in `tools/__init__.py:build_tools`. Also add its Polish label to `TOOL_LABELS` in `static/js/i18n.js`, because the chat shows that label instead of the function name. `speak_directly=True` means the handler's return string is the spoken reply, with no second LLM round. Informational tools set it to False, so the model phrases the answer. Raise `ToolError` with a Polish message for user-facing failures.
 
+`tools/computer.py` holds the PC actions (Windows; only `timer` works everywhere):
+- `open_app`: Start-menu apps from `Get-StartApps`, cached in `ctx.state`. If the app isn't there, it tries websites (e.g. Instagram), `shell:` folders, and `ms-settings:` pages.
+- `media`: multimedia keys.
+- `close_app`: `CloseMainWindow`. It never touches Jarvis itself, Explorer, or the Messenger browser.
+- `pc`: lock, sleep, screenshot.
+- `system_info`.
+- `timer`.
+
+The model only picks the action and a name; the scripts are our own constants. User input reaches PowerShell only through environment variables (`ctx.powershell(script, env)`). Tests fake `launch`/`powershell`/`press_key`/`open_url`. Word matching tolerates Polish endings but requires near-equal words, because a bare 4-letter prefix matched "Instagrama" to "Visual Studio Installer". These tools add about 600 tokens per request.
+
 The system prompt is static so Groq can cache the prefix. Dynamic context (current date, the next-14-days table used for relative dates, and interruption notes) is prepended to the latest user message in a `<kontekst>` block by `build_context`. The free Groq tier allows about 8K tokens/min, and a request is about 1.3–1.5K tokens, so keep tool descriptions and the prompt short.
 
 **Voice pipeline** (`jarvis/audio/`):

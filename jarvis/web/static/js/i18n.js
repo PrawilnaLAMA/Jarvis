@@ -49,6 +49,12 @@ export const TOOL_LABELS = {
   cancel_shutdown: 'Anulowanie wyłączenia',
   stay_silent: 'Cisza',
   clear_conversation: 'Czyszczenie pamięci rozmowy',
+  open_app: 'Otwieranie',
+  close_app: 'Zamykanie programu',
+  media: 'Dźwięk i muzyka',
+  pc: 'Komputer',
+  timer: 'Minutnik',
+  system_info: 'Stan komputera',
 };
 
 export function capitalize(text) {

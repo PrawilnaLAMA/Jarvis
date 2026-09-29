@@ -42,7 +42,7 @@ def tools() -> list[Tool]:
         ),
         Tool(
             "play_youtube",
-            "Puszcza piosenkę lub film na YouTube.",
+            "Puszcza na YouTube piosenkę lub film o podanym tytule.",
             params({"query": {"type": "string", "description": "Tytuł i/lub wykonawca."}}, ["query"]),
             play_youtube,
         ),

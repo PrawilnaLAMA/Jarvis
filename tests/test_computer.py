@@ -1,0 +1,138 @@
+"""Czynności na komputerze – na atrapach: nic się naprawdę nie uruchamia ani nie wciska."""
+
+import json
+import sys
+
+import pytest
+
+from jarvis.conversation import Conversation
+from jarvis.settings import SettingsStore
+from jarvis.tools import ToolContext, ToolError, build_tools, computer
+
+START_APPS = [
+    {"Name": "Spotify", "AppID": "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"},
+    {"Name": "Steam Support Center", "AppID": "http://support.steampowered.com/"},
+    {"Name": "Steam", "AppID": "{7C5A40EF}\\Steam\\steam.exe"},
+    {"Name": "Messenger", "AppID": "FACEBOOK.317180B0BB486_8xx8rvfyw5nnt!App"},
+    {"Name": "Google Chrome", "AppID": "Chrome"},
+    {"Name": "Visual Studio Installer", "AppID": "Microsoft.VisualStudio.Installer"},  # „inst…” jak Instagram
+]
+
+
+class Recorder:
+    def __init__(self):
+        self.launched, self.urls, self.keys, self.scripts, self.spoken = [], [], [], [], []
+        self.closed = ""
+
+    def powershell(self, script, env=None):
+        self.scripts.append((script, env or {}))
+        if "Get-StartApps" in script:
+            return json.dumps(START_APPS)
+        if "CloseMainWindow" in script:
+            return self.closed
+        if "Win32_OperatingSystem" in script:
+            return json.dumps({"battery": {"percent": 81, "plugged": True},
+                               "disks": [{"name": "C", "free": 120.5, "total": 476.3}],
+                               "memory": {"free": 6.2, "total": 15.9}, "uptime_hours": 5.2, "cpu": 12,
+                               "ipv4": ["192.168.1.20"]})
+        return ""
+
+
+@pytest.fixture
+def rec():
+    return Recorder()
+
+
+@pytest.fixture
+def ctx(tmp_path, bus, domownik, messenger, inbox, rec):
+    return ToolContext(
+        settings=SettingsStore(tmp_path / "s.json"), bus=bus, domownik=domownik, discord=None, messenger=messenger,
+        inbox=inbox, conversation=Conversation(tmp_path / "c.json", lambda: 12),
+        open_url=rec.urls.append, launch=rec.launched.append, powershell=rec.powershell,
+        press_key=lambda vk, times: rec.keys.append((vk, times)), announce=rec.spoken.append,
+    )
+
+
+def test_open_app_from_start_menu_with_polish_endings(ctx, rec):
+    assert computer.open_app(ctx, {"target": "Steama"}) == "Otwieram Steam."  # nie „Steam Support Center”
+    assert rec.launched[-1] == ["explorer.exe", "shell:AppsFolder\\{7C5A40EF}\\Steam\\steam.exe"]
+    assert computer.open_app(ctx, {"target": "aplikację Spotify"}) == "Otwieram Spotify."
+    computer.open_app(ctx, {"target": "chrome"})
+    assert rec.launched[-1][-1] == "shell:AppsFolder\\Chrome"
+    assert sum("Get-StartApps" in s for s, _ in rec.scripts) == 1  # lista aplikacji z pamięci
+
+
+def test_open_site_folder_and_settings(ctx, rec, recorder):
+    assert computer.open_app(ctx, {"target": "Instagrama"}) == "Otwieram Instagrama w przeglądarce."
+    assert rec.urls == ["https://www.instagram.com/"]
+    computer.open_app(ctx, {"target": "olx.pl/oferty"})
+    assert rec.urls[-1] == "https://olx.pl/oferty"
+    assert computer.open_app(ctx, {"target": "folder pobranych"}) == "Otwieram folder Pobrane."
+    assert rec.launched[-1] == ["explorer.exe", "shell:Downloads"]
+    assert computer.open_app(ctx, {"target": "ustawienia bluetooth"}) == "Otwieram ustawienia: Bluetooth."
+    computer.open_app(ctx, {"target": "ustawienia"})
+    assert rec.launched[-1] == ["explorer.exe", "ms-settings:"]
+    computer.open_app(ctx, {"target": "ustawienia Jarvisa"})
+    assert recorder.of("ui.navigate")[-1] == {"view": "settings"}
+    with pytest.raises(ToolError, match="Nie znalazłem"):
+        computer.open_app(ctx, {"target": "Fortnajt"})
+    # nieznana nazwa bez strony – lista aplikacji jeszcze raz (może właśnie ją zainstalowano)
+    assert sum("Get-StartApps" in s for s, _ in rec.scripts) == 2
+
+
+def test_close_app_passes_name_only_through_environment(ctx, rec):
+    rec.closed = "chrome\nchrome\n"
+    assert computer.close_app(ctx, {"name": "Chrome"}).startswith("Zamykam: chrome.")
+    script, env = rec.scripts[-1]
+    assert "Chrome" not in script and env["JARVIS_TARGET"] == "Chrome" and env["JARVIS_PID"].isdigit()
+    rec.closed = ""
+    with pytest.raises(ToolError, match="Nie widzę"):
+        computer.close_app(ctx, {"name": "Word"})
+    with pytest.raises(ToolError, match="Siebie"):
+        computer.close_app(ctx, {"name": "Jarvis"})
+
+
+def test_media_keys(ctx, rec):
+    assert computer.media(ctx, {"action": "set_volume", "value": 30}) == "Głośność na 30 procent."
+    assert rec.keys == [(0xAE, 50), (0xAF, 15)]  # do zera, potem 15 kroków po 2%
+    computer.media(ctx, {"action": "volume_down"})
+    computer.media(ctx, {"action": "play_pause"})
+    assert rec.keys[2:] == [(0xAE, 5), (0xB3, 1)]
+    with pytest.raises(ToolError):
+        computer.media(ctx, {"action": "set_volume"})
+
+
+def test_timer_rings_and_can_be_cancelled(ctx, rec, recorder, monkeypatch):
+    started = []
+
+    class FakeTimer:
+        def __init__(self, seconds, fn):
+            self.seconds, self.fn, self.cancelled = seconds, fn, False
+            started.append(self)
+
+        def start(self):
+            pass
+
+        def cancel(self):
+            self.cancelled = True
+
+    monkeypatch.setattr(computer.threading, "Timer", FakeTimer)
+    assert computer.timer(ctx, {"action": "set", "minutes": 10, "label": "makaron"}) == "Minutnik na 10 minut: makaron."
+    assert computer.timer(ctx, {"action": "set", "minutes": 0.5}) == "Minutnik na 30 sekund."
+    assert "makaron – zostało 10 minut" in computer.timer(ctx, {"action": "list"})
+    started[0].fn()
+    assert rec.spoken == ["Minął czas: makaron."] and recorder.of("notice")[-1]["text"] == "Minął czas: makaron."
+    assert computer.timer(ctx, {"action": "cancel"}) == "Anulowałem minutnik."
+    assert started[1].cancelled and computer.timer(ctx, {"action": "list"}) == "Nie ma nastawionych minutników."
+
+
+def test_system_info_is_readable(ctx):
+    text = computer.system_info(ctx, {})
+    assert "Bateria 81% (podłączony do prądu)" in text and "Dysk C: wolne 120.5 z 476.3 GB" in text
+    assert "Adres IP: 192.168.1.20" in text
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="czynności komputera tylko na Windowsie")
+def test_computer_tools_are_registered(tmp_path):
+    names = {t.name for t in build_tools(SettingsStore(tmp_path / "s.json").get())}
+    assert {"open_app", "close_app", "media", "pc", "timer", "system_info"} <= names
