@@ -121,6 +121,13 @@ class JarvisApp:
                 self.voice.speaker.say(reply, "reply")
         return reply
 
+    def confirm_command(self, command_id: str, accept: bool) -> str | None:
+        """Przycisk w czacie przy poleceniu konsoli; None = polecenie wygasło albo zostało zastąpione."""
+        reply = self.assistant.resolve_command(command_id, accept)
+        if reply and self.voice and self.settings.get().voice.speak_text_replies:
+            self.voice.speaker.say_async(reply, "reply")
+        return reply
+
     def _respond_voice(self, text: str, barge_in: Any) -> None:
         # w wątku głosowym mówimy synchronicznie – pętla wie, kiedy odpowiedź się skończyła
         self.respond(text, "voice", barge_in, speak_async=False)

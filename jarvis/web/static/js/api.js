@@ -83,6 +83,7 @@ function errorList(data) {
 export const api = {
   status: () => request('GET', 'api/status'),
   command: (text) => request('POST', 'api/command', { text }),
+  confirm: (id, accept) => request('POST', 'api/confirm', { id, accept }),
 
   domownikStatus: () => request('GET', 'api/domownik/status'),
   messengerThreads: () => request('GET', 'api/messenger/threads'),

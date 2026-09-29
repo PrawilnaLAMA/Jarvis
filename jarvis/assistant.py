@@ -15,7 +15,7 @@ from jarvis.llm import LLMClient, LLMError
 from jarvis.polish import MONTHS_GENITIVE_PL, WEEKDAYS_PL
 from jarvis.services.inbox import APP_NAMES, IncomingMessage
 from jarvis.settings import Settings, SettingsStore
-from jarvis.tools import Tool, ToolContext, ToolError, build_tools
+from jarvis.tools import Tool, ToolContext, ToolError, build_tools, console
 
 log = logging.getLogger(__name__)
 
@@ -145,7 +145,21 @@ class Assistant:
                 self._bus.publish("reply", text=reply, source=source)
             return reply
 
+    def resolve_command(self, command_id: str, accept: bool) -> str | None:
+        """Przycisk „Wykonaj”/„Anuluj” przy poleceniu konsoli – ta sama zgoda co „tak”/„nie”."""
+        with self._lock:
+            reply = console.resolve(self._ctx, command_id, accept)
+            if reply:
+                self._conversation.add("assistant", reply)
+                self._bus.publish("reply", text=reply, source="text")
+            return reply
+
     def _run(self, text: str, source: str, interruption: Interruption | None) -> str | None:
+        # „tak”/„nie” na czekające polecenie konsoli rozstrzygamy bez modelu – model nie może sam sobie
+        # wydać zgody, a zgoda musi dotyczyć dokładnie tego polecenia, które widać w czacie
+        answered = console.answer_pending(self._ctx, text)
+        if answered is not None:
+            return answered
         settings = self._settings.get()
         tools = build_tools(settings)
         by_name = {t.name: t for t in tools}

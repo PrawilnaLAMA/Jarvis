@@ -1482,6 +1482,80 @@ input[type="time"].input {
   color: #c084fc;
 }
 
+/* polecenie konsoli czekające na zgodę (bursztyn – czeka na decyzję) */
+.confirm {
+  align-self: stretch;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(255, 198, 92, 0.35);
+  border-left: 3px solid var(--warn);
+  border-radius: 12px;
+  background: rgba(255, 198, 92, 0.06);
+}
+
+.confirm .entry-head .icon {
+  color: var(--warn);
+}
+
+.confirm-desc {
+  margin: 0 0 8px;
+}
+
+.confirm-code,
+.confirm-output {
+  max-height: 180px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.confirm-output {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.confirm-status {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.confirm.is-done {
+  border-color: rgba(75, 227, 160, 0.35);
+  border-left-color: var(--ok);
+  background: rgba(75, 227, 160, 0.05);
+}
+
+.confirm.is-done .confirm-status {
+  color: var(--ok);
+}
+
+.confirm.is-failed .confirm-status {
+  color: var(--danger);
+}
+
+.confirm.is-cancelled,
+.confirm.is-expired {
+  border-color: var(--line);
+  border-left-color: var(--text-faint);
+  background: transparent;
+  opacity: 0.8;
+}
+
 .day-sep {
   display: flex;
   align-items: center;

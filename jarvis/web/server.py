@@ -28,7 +28,8 @@ from jarvis.settings import SECRET_KEYS, SettingsError
 
 log = logging.getLogger(__name__)
 
-HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "messenger.message", "notice"}
+HISTORY_TOPICS = {"transcript", "reply", "tool", "discord.message", "messenger.message", "notice",
+                  "confirm.request", "confirm.done"}
 MAX_QUEUE = 500
 
 # Windows potrafi mieć w rejestrze .js jako text/plain – przeglądarka odrzuciłaby wtedy moduły ES
@@ -118,6 +119,14 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
         if not text:
             raise HTTPException(400, "Puste polecenie.")
         return {"reply": jarvis.respond(text, "text")}
+
+    @api.post("/api/confirm", response_model=None)
+    def confirm(body: dict[str, Any] = Body(...)) -> dict[str, Any] | JSONResponse:
+        """„Wykonaj”/„Anuluj” przy poleceniu konsoli (tylko z okna Jarvisa – patrz trusted_request)."""
+        reply = jarvis.confirm_command(str(body.get("id", "")), body.get("accept") is True)
+        if reply is None:
+            return _error(409, "To polecenie już wygasło albo zostało zastąpione.")
+        return {"reply": reply}
 
     @api.post("/api/window/show")
     def window_show() -> dict[str, Any]:

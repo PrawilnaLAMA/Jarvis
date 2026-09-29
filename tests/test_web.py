@@ -133,3 +133,9 @@ def test_autostart_endpoints(client, monkeypatch):
     assert client.put("/api/autostart", json={"enabled": True}).json() == {"supported": True, "enabled": True}
     monkeypatch.setattr(autostart, "supported", lambda: False)
     assert client.put("/api/autostart", json={"enabled": False}).status_code == 409
+
+
+def test_confirm_endpoint_only_for_a_pending_command(client):
+    assert client.post("/api/confirm", json={"id": "nie-ma", "accept": True}).status_code == 409
+    evil = {"origin": "https://zla-strona.example"}
+    assert client.post("/api/confirm", json={"id": "x", "accept": True}, headers=evil).status_code == 403

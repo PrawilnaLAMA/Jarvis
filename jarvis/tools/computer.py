@@ -87,9 +87,20 @@ SETTINGS_PAGES = {
     "data": ("ms-settings:dateandtime", "data i godzina"),
     "godzina": ("ms-settings:dateandtime", "data i godzina"),
     "prywatnosc": ("ms-settings:privacy", "prywatność"),
+    "motyw": ("ms-settings:colors", "kolory i motyw"),
+    "kolory": ("ms-settings:colors", "kolory i motyw"),
+    "tryb ciemny": ("ms-settings:colors", "kolory i motyw"),
+    "personalizacja": ("ms-settings:personalization", "personalizacja"),
 }
+_SETTINGS_WORDS = ("ustawienia", "ustawien", "settings")
 
 APPS_TTL_SECONDS = 600  # lista aplikacji z menu Start – odświeżana co 10 min albo gdy czegoś nie ma
+# Skróty serwisowe z menu Start (reset ustawień, odinstalowanie, naprawa) nigdy nie są „aplikacją do otwarcia”:
+# „włącz ciemny motyw” trafiło kiedyś w „Reset settings” Cheat Engine'a i uruchomiło jego reset ustawień.
+_SERVICE_ENTRY = re.compile(
+    r"reset|uninstal|odinstal|remove|usun|repair|napraw|factory|default|reinstal|clean|wipe|format|unins\d*\.exe",
+    re.IGNORECASE,
+)
 
 # klawisze multimedialne (każdy krok głośności to 2%)
 VK = {"mute": 0xAD, "volume_down": 0xAE, "volume_up": 0xAF, "next": 0xB0, "previous": 0xB1, "play_pause": 0xB3}
@@ -186,7 +197,9 @@ def _start_apps(ctx: ToolContext, refresh: bool = False) -> list[dict[str, str]]
             data = []
         items = [data] if isinstance(data, dict) else data if isinstance(data, list) else []
         cache["apps"] = [
-            {"name": str(a.get("Name", "")), "id": str(a.get("AppID", ""))} for a in items if a.get("AppID")
+            {"name": str(a.get("Name", "")), "id": str(a.get("AppID", ""))}
+            for a in items
+            if a.get("AppID") and not _SERVICE_ENTRY.search(f"{a.get('Name', '')} {a.get('AppID', '')}")
         ]
         cache["at"] = time.monotonic()
     return cache["apps"]
@@ -228,7 +241,8 @@ def open_app(ctx: ToolContext, args: dict[str, Any]) -> str:
     if page:
         _run(ctx, ctx.launch, ["explorer.exe", page[0]])
         return f"Otwieram ustawienia: {page[1]}."
-    if query in (["ustawienia"], ["ustawienia", "windows"]):
+    if any(w in _SETTINGS_WORDS for w in query):
+        # o ustawienia pytamy tylko ustawienia Windows – „settings” pasowało np. do aplikacji „Reset settings”
         _run(ctx, ctx.launch, ["explorer.exe", "ms-settings:"])
         return "Otwieram ustawienia Windows."
     site = _lookup(query, SITES)

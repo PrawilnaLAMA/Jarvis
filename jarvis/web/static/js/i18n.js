@@ -55,6 +55,7 @@ export const TOOL_LABELS = {
   pc: 'Komputer',
   timer: 'Minutnik',
   system_info: 'Stan komputera',
+  run_command: 'Konsola',
 };
 
 export function capitalize(text) {

@@ -13,6 +13,8 @@ Tematy (topic) i ich dane:
 - messenger.message {author, content, contact}
 - messenger.status {enabled, state: off|starting|login|ready|error, error}
 - notice           {text, level: info|warning|error}
+- confirm.request  {id, description, command}          – polecenie konsoli czeka na zgodę użytkownika
+- confirm.done     {id, status: done|failed|cancelled|expired, output}
 - settings.changed {}
 - ui.navigate      {view: jarvis|dom|settings, path?}  – path: podstrona Domownika, np. /zakupy
 - ui.show          {}                                   – przywołaj okno (drugie uruchomienie Jarvisa)

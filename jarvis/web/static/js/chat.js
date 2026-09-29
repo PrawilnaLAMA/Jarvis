@@ -3,9 +3,18 @@
 import { $, h, icon, clear, onMediaChange } from './dom.js';
 import { formatClock, formatLongDate, toISODate, addDays } from './dates.js';
 import { TOOL_LABELS, capitalize } from './i18n.js';
+import { api } from './api.js';
 import { assistantState } from './store.js';
 
-const CHAT_TOPICS = ['transcript', 'reply', 'tool', 'discord.message', 'messenger.message', 'notice'];
+const CHAT_TOPICS = [
+  'transcript', 'reply', 'tool', 'discord.message', 'messenger.message', 'notice', 'confirm.request', 'confirm.done',
+];
+const CONFIRM_STATUS = {
+  done: 'Wykonane',
+  failed: 'Nie udało się',
+  cancelled: 'Anulowane',
+  expired: 'Wygasło – nie wykonane',
+};
 const MAX_ITEMS = 300;
 const MAX_DETAILS = 1500;
 const NOTICE_ICONS = { info: 'info', warning: 'warning', error: 'error' };
@@ -243,6 +252,42 @@ const RENDERERS = {
     );
   },
 
+  /** Polecenie konsoli czeka na zgodę – dokładnie to, co się wykona, i przyciski. */
+  'confirm.request'(data, ts) {
+    const id = str(data.id);
+    const run = h('button', { type: 'button', class: 'btn btn-small btn-primary' }, icon('check'), 'Wykonaj');
+    const cancel = h('button', { type: 'button', class: 'btn btn-small btn-ghost' }, 'Anuluj');
+    const actions = h('div', { class: 'confirm-actions' }, run, cancel);
+    const status = h('p', { class: 'confirm-status', hidden: true });
+    const card = h(
+      'li',
+      { class: 'confirm', dataset: { confirmId: id } },
+      h('div', { class: 'entry-head' }, icon('warning'), h('span', { class: 'entry-label' }, 'Polecenie czeka na zgodę'), timeEl(ts)),
+      h('p', { class: 'confirm-desc' }, str(data.description)),
+      h('pre', { class: 'confirm-code' }, str(data.command)),
+      actions,
+      status,
+    );
+    const answer = async (accept) => {
+      run.disabled = cancel.disabled = true;
+      try {
+        await api.confirm(id, accept);
+      } catch (err) {
+        setConfirmStatus(card, 'expired', '', err.message);
+      }
+    };
+    run.addEventListener('click', () => answer(true));
+    cancel.addEventListener('click', () => answer(false));
+    return card;
+  },
+
+  /** Wynik – uzupełnia kartę prośby, nie dodaje nowego wpisu. */
+  'confirm.done'(data) {
+    const card = document.querySelector(`.confirm[data-confirm-id="${CSS.escape(str(data.id))}"]`);
+    if (card) setConfirmStatus(card, str(data.status), str(data.output));
+    return null;
+  },
+
   'discord.message'(data, ts) {
     return incoming('discord', 'Discord', data, ts);
   },
@@ -299,6 +344,16 @@ function daySeparator(ts) {
   else if (day === toISODate(addDays(today, -1))) label = 'Wczoraj';
   else label = capitalize(formatLongDate(new Date(ts * 1000), false));
   return h('li', { class: 'day-sep', role: 'separator' }, h('span', null, label));
+}
+
+function setConfirmStatus(card, status, output, message) {
+  card.querySelector('.confirm-actions')?.remove();
+  card.querySelector('.entry-label').textContent = 'Polecenie w konsoli';
+  card.classList.add(`is-${status}`);
+  const el = card.querySelector('.confirm-status');
+  el.textContent = message || CONFIRM_STATUS[status] || status;
+  el.hidden = false;
+  if (output) card.append(h('pre', { class: 'confirm-output' }, output));
 }
 
 function describeTool(data) {

@@ -56,6 +56,18 @@ def _powershell(script: str, env: dict[str, str] | None = None) -> str:
     return result.stdout.decode("utf-8", errors="replace").strip()
 
 
+def _shell(command: str) -> str:
+    """Polecenie z konsoli (tools/console.py) – uruchamiane dopiero po zgodzie użytkownika."""
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+         "[Console]::OutputEncoding = [Text.Encoding]::UTF8\n" + command],
+        capture_output=True, timeout=60, creationflags=_NO_WINDOW,
+    )
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, "powershell", result.stdout, result.stderr)
+    return result.stdout.decode("utf-8", errors="replace")
+
+
 def _press_key(vk: int, times: int = 1) -> None:
     """Klawisz multimedialny (głośność, pauza…) – działa z każdym odtwarzaczem, jak klawisze na klawiaturze."""
     import ctypes
@@ -82,6 +94,7 @@ class ToolContext:
     run_command: Callable[[list[str]], None] = _run_command
     launch: Callable[[list[str]], None] = _launch
     powershell: Callable[..., str] = _powershell
+    shell: Callable[[str], str] = _shell  # konsola – tylko po zgodzie użytkownika (tools/console.py)
     press_key: Callable[[int, int], None] = _press_key
     announce: Callable[[str], None] = lambda text: None  # mówi na głos (minutnik); JarvisApp podaje swój
     clock: Callable[[], datetime] = field(default=datetime.now)
