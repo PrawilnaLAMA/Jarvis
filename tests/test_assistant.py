@@ -216,7 +216,8 @@ def test_unknown_tool_and_bad_json_do_not_crash(env):
 def test_context_has_dates_and_interruption():
     incoming = IncomingMessage("discord", "PIOTREK", "Piotrek", "gramy?", NOW.timestamp() - 180)
     context = build_context(NOW, "text", Interruption("Rzym został założony"), incoming)
-    assert "Ostatnia wiadomość do użytkownika: od PIOTREK (Discord, 3 min temu): „gramy?”." in context
+    assert "Ostatnia wiadomość do użytkownika: od PIOTREK (Discord, 3 min temu)." in context
+    assert "gramy" not in context  # treść cudzej wiadomości nie trafia do modelu – słucha tylko użytkownika
     assert "Rzym został założony" in context
     assert "Teraz: poniedziałek 2025-11-03, godz. 12:00" in context
     assert "wtorek 2025-11-04 (jutro)" in context and "piątek 2025-11-07" in context

@@ -82,11 +82,11 @@ def build_context(
         )
     if incoming:
         minutes = max(0, round((now.timestamp() - incoming.received_at) / 60))
-        # przy długim ciągu wiadomości liczy się koniec – na niego zwykle się odpisuje
-        content = ("…" + incoming.content[-300:] if len(incoming.content) > 300 else incoming.content) or "(załącznik)"
+        # Treści cudzej wiadomości model nie dostaje: Jarvis słucha tylko użytkownika, a piszący mógłby
+        # w wiadomości wydać mu polecenie. Użytkownik i tak ją usłyszał; do „odpisz jej” wystarczy nadawca.
         lines.append(
             f"Ostatnia wiadomość do użytkownika: od {incoming.contact} ({APP_NAMES[incoming.app]}, "
-            f"{minutes} min temu): „{content}”. „Odpisz” dotyczy tej osoby."
+            f"{minutes} min temu). „Odpisz” dotyczy tej osoby."
         )
     return "<kontekst>\n" + "\n".join(lines) + "\n</kontekst>"
 

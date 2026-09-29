@@ -73,9 +73,32 @@ def _error(status: int, detail: str, **extra: Any) -> JSONResponse:
     return JSONResponse({"detail": detail, **extra}, status_code=status)
 
 
+LOCAL_HOSTS = ("127.0.0.1", "localhost")
+
+
+def trusted_request(headers: Any) -> bool:
+    """Czy zapytanie przyszło z okna Jarvisa (albo z programu bez przeglądarki, np. drugiego uruchomienia).
+
+    Serwer słucha tylko na 127.0.0.1, ale każda strona otwarta w przeglądarce może wysłać zapytanie na
+    127.0.0.1 albo otworzyć WebSocket (tego CORS nie blokuje) – i wydać Jarvisowi polecenie. Dlatego:
+    Host musi być lokalny (chroni przed podmianą DNS na 127.0.0.1), a Origin, jeśli jest, tym samym adresem.
+    """
+    host = headers.get("host", "")
+    if host.rsplit(":", 1)[0] not in LOCAL_HOSTS:
+        return False
+    origin = headers.get("origin")
+    return origin is None or origin == f"http://{host}"
+
+
 def create_app(jarvis: JarvisApp) -> FastAPI:
     api = FastAPI(title="Jarvis", docs_url=None, redoc_url=None)
     hub = WebSocketHub(jarvis.bus)
+
+    @api.middleware("http")
+    async def only_jarvis_window(request, call_next):
+        if not trusted_request(request.headers):
+            return _error(403, "Zapytania spoza okna Jarvisa są zablokowane.")
+        return await call_next(request)
 
     @lru_cache(maxsize=1)
     def voices() -> list[dict[str, str]]:
@@ -220,6 +243,9 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
 
     @api.websocket("/ws")
     async def websocket(ws: WebSocket) -> None:
+        if not trusted_request(ws.headers):
+            await ws.close(code=1008)  # obca strona – bez czatu i bez poleceń
+            return
         await ws.accept()
         queue: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()

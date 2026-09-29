@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from jarvis.app import JarvisApp
 from jarvis.services.domownik_client import DomownikError
@@ -23,10 +24,26 @@ def app(tmp_path, monkeypatch):
     return JarvisApp(data_dir=tmp_path / "data", env_file=tmp_path / ".env", voice=False, llm=FakeLLM())
 
 
+LOCAL = "http://127.0.0.1:8765"
+WS = "ws://127.0.0.1:8765/ws"  # klient WebSocket w testach nie bierze adresu z base_url
+
+
 @pytest.fixture
 def client(app):
-    with TestClient(create_app(app)) as c:
+    with TestClient(create_app(app), base_url=LOCAL) as c:
         yield c
+
+
+def test_only_the_jarvis_window_may_talk_to_the_api(client):
+    # obca strona w przeglądarce (Origin) i podmiana DNS na 127.0.0.1 (obcy Host) – odmowa
+    evil = {"origin": "https://zla-strona.example"}
+    assert client.post("/api/command", json={"text": "cześć"}, headers=evil).status_code == 403
+    assert client.get("/api/status", headers={"host": "zla-strona.example:8765"}).status_code == 403
+    assert client.post("/api/command", json={"text": "cześć"}, headers={"origin": LOCAL}).status_code == 200
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect(WS, headers=evil) as ws:
+        ws.receive_json()
+    with client.websocket_connect(WS, headers={"origin": LOCAL}) as ws:
+        assert ws.receive_json()["topic"] == "hello"
 
 
 def test_status_and_static_index(client):
@@ -81,7 +98,7 @@ def test_models_and_voice_endpoints_without_audio(client):
 
 
 def test_websocket_hello_command_and_events(client):
-    with client.websocket_connect("/ws") as ws:
+    with client.websocket_connect(WS) as ws:
         hello = ws.receive_json()
         assert hello["topic"] == "hello" and hello["data"]["state"] == "idle"
         ws.send_json({"type": "command", "text": "która godzina"})
@@ -93,7 +110,7 @@ def test_websocket_hello_command_and_events(client):
         assert "state" in topics  # thinking → idle
 
     # historia trafia do nowego połączenia
-    with client.websocket_connect("/ws") as ws:
+    with client.websocket_connect(WS) as ws:
         history = ws.receive_json()["data"]["history"]
         assert [m["topic"] for m in history][-2:] == ["transcript", "reply"]
 
