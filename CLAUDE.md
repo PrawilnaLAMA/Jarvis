@@ -25,13 +25,22 @@ make pi-setup && make pi-run                 # Raspberry Pi 4/5, 64-bit OS
 
 `jarvis/app.py` `JarvisApp` is the composition root. `jarvis/__main__.py` starts uvicorn in a background thread (`web/server.py`) and runs the pywebview window on the main thread (`ui/window.py`). pywebview must own the main thread; if it is missing, the app falls back to a browser.
 
-**Desktop orb (Windows, `ui/desktop.py`).** With `ui.desktop_orb` (default on, not with `--fullscreen`), Jarvis is a frameless pywebview window that always keeps its full size. In orb mode, only a circle is visible: a Win32 window region (`SetWindowRgn`) that also clips clicks. The page draws `#desk-orb` at `--orb-x/--orb-y` over the full UI, which stays laid out underneath (`inert`, big orb paused). Expanding grows the region from the orb to the whole window. The window stands centered on the orb's monitor, unless the orb is too far from the center to fit inside it; then the window is placed around the orb (`placement`). Resizing the window is avoided because WebView2 then shows black for about 0.5 s. The orb lives on the desktop: it sits at `HWND_BOTTOM` (just above Explorer's `Progman`, under all windows). A watcher thread makes it topmost while the desktop, or the orb itself, is the foreground window. The taskbar and Start are neutral. There is no taskbar button because the window has a hidden owner window; the orb also gets `WS_EX_TOOLWINDOW` (not in Alt+Tab). Pitfalls:
+**Desktop orb (Windows, `ui/desktop.py`).** With `ui.desktop_orb` (default on, not with `--fullscreen`), Jarvis is a frameless pywebview window that always keeps its full size. In orb mode, only a circle is visible: a Win32 window region (`SetWindowRgn`) that also clips clicks. The page draws `#desk-orb` at `--orb-x/--orb-y` over the full UI, which stays laid out underneath (`inert`, big orb paused). Expanding grows the region from the orb to the whole window. Python sends the same animation to the page as `setMode(mode, {cx, cy, r0, r1, ms, ease, at})`, where `at` is the wall-clock start time, so both sides share one timeline. The page then does three things:
+- draws a glowing rim just inside the region edge, to hide its aliased pixels;
+- flies the big orb from the small orb's spot to its place (FLIP on `#orb-wrap`), while `Orb.playIntro()` unfolds the reactor ring;
+- brings the rest of the UI in one part at a time (`js/reveal.js`).
+
+Collapsing is the reverse.
+
+The window stands centered on the orb's monitor, unless the orb is too far from the center to fit inside it; then the window is placed around the orb (`placement`). Resizing the window is avoided because WebView2 then shows black for about 0.5 s. The orb lives on the desktop: it sits at `HWND_BOTTOM` (just above Explorer's `Progman`, under all windows). A watcher thread makes it topmost while the desktop, or the orb itself, is the foreground window. The taskbar and Start are neutral. There is no taskbar button because the window has a hidden owner window; the orb also gets `WS_EX_TOOLWINDOW` (not in Alt+Tab). Pitfalls:
 - WebView2 cannot be transparent: `transparent`/`TransparencyKey` gives a dark rectangle.
 - pywebview's Mica backdrop is drawn outside the region, as a gray square. It is turned off, and again on every `UserPreferenceChanged`.
 - The process is system-DPI-aware (pywebview calls `SetProcessDPIAware`), so geometry is done in Win32 pixels and passed to the page divided by the scale.
 - JS calls the exposed `pywebview.api.*` (`expand`, `collapse`, `orb_moved`, `orb_menu`, `toggle_maximize`, `quit`). Python drives the page through `window.jarvisDesktop.setMode/setOrb`.
 - `ui.navigate`/`ui.show` expand the orb.
 - The orb position is stored in `data/window.json`.
+
+**Look.** The orb (`js/orb.js`) is an "arc reactor". Its plasma core is drawn in WebGL (`js/orb-core.js`, a shader with fbm noise and a scissor box, at lower resolution on ARM). If WebGL is missing, it falls back to the 2D blob. The reactor segments, scale, arcs, and particles go on a 2D canvas on top. The font is Archivo, bundled in `static/fonts` and `domownik/static/fonts` under the OFL. It has a width axis: `--wide`/`--wordmark` (font-stretch) is used for headings. Headings are sentence case, not tracked caps.
 
 **Data flow.** Background threads never touch the UI directly. They publish to `events.EventBus` (topics are documented in its module docstring). `web/server.py` `WebSocketHub` forwards every event to `/ws` clients and keeps chat history for reconnecting clients. `state.StatusTracker` merges listener, transcribing, thinking, and speaking into the single `state` the orb displays. The UI contract (REST + WS) is what `jarvis/web/static/js/*` expects, so change both sides together.
 

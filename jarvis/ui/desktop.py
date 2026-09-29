@@ -22,6 +22,7 @@ geometrię liczymy sami przez Win32; stronie podajemy je w pikselach CSS (podzie
 
 import ctypes
 import ctypes.wintypes as wt
+import json
 import logging
 import math
 import threading
@@ -37,7 +38,11 @@ log = logging.getLogger(__name__)
 ORB_SIZE = 112  # średnica kulki przy 100% skalowania
 FULL_SIZE = (1180, 760)
 SCREEN_MARGIN = 16
-ANIMATION_SECONDS = 0.26
+# koło otwiera się szybko i zwalnia; zamyka płynnie – strona w tym czasie przenosi kulę (js/desktop.js)
+EXPAND_SECONDS = 0.5
+COLLAPSE_SECONDS = 0.46
+# start animacji koła chwilę po wysłaniu jej stronie – obie strony liczą od tej samej chwili (czas ścienny)
+START_DELAY = 0.04
 WATCH_SECONDS = 0.2
 DESKTOP_CLASSES = ("Progman", "WorkerW")  # okna pulpitu Eksploratora
 # pasek zadań, Start, Alt+Tab i wysuwane panele – nie zmieniają tego, czy kulka jest nad oknami
@@ -79,6 +84,13 @@ def cover_radius(cx: float, cy: float, width: int, height: int) -> float:
 
 def ease_out(t: float) -> float:
     return 1 - (1 - t) ** 3
+
+
+def ease_in_out(t: float) -> float:
+    return 4 * t**3 if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
+
+
+EASINGS = {"out": ease_out, "in_out": ease_in_out}  # te same krzywe liczy strona (js/desktop.js)
 
 
 # --- Win32 ---
@@ -229,10 +241,13 @@ class DesktopWindow:
                 self._user32.SetWindowPos(self.hwnd, None, tx, ty, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
                 ox, oy = self.offset = (home[0] - tx, home[1] - ty)
                 self._send_orb()
-            self._set_page_mode("full")
             self._set_toolwindow(False)
             self._focus()  # np. „otwórz kalendarz” głosem, gdy kulka leży pod oknami – rozwija się na wierzchu
-            self._animate(ox, oy, self._orb / 2, cover_radius(ox, oy, w, h))
+            # strona zaczyna swoją część (krawędź koła, przelot kuli) tuż przed regionem – evaluate_js czeka na nią
+            reveal = (ox, oy, self._orb / 2, cover_radius(ox, oy, w, h), EXPAND_SECONDS, "out",
+                      time.time() + START_DELAY)
+            self._set_page_mode("full", reveal)
+            self._animate(*reveal)
             self._user32.SetWindowRgn(self.hwnd, None, True)
             self._apply_frame()
             self._restore = None
@@ -250,9 +265,11 @@ class DesktopWindow:
             self.mode = "orb"
             x, y, w, h = self._rect()
             ox, oy = self.offset
-            self._set_page_mode("orb")
             self._apply_frame()
-            self._animate(ox, oy, cover_radius(ox, oy, w, h), self._orb / 2)
+            reveal = (ox, oy, cover_radius(ox, oy, w, h), self._orb / 2, COLLAPSE_SECONDS, "in_out",
+                      time.time() + START_DELAY)
+            self._set_page_mode("orb", reveal)
+            self._animate(*reveal)
             self._set_toolwindow(True)
             home = (x + ox, y + oy)
             if not self._on_screen(home):  # pełne okno przeciągnięte tak, że kulka wypadłaby poza ekran
@@ -375,11 +392,17 @@ class DesktopWindow:
 
     # --- pomocnicze ---
 
-    def _animate(self, cx: float, cy: float, r0: float, r1: float) -> None:
-        start = time.perf_counter()
+    def _animate(self, cx: float, cy: float, r0: float, r1: float, seconds: float, ease: str, at: float) -> None:
+        """Region-koło od r0 do r1; start o czasie ściennym `at` (tym samym, który dostała strona)."""
+        curve = EASINGS[ease]
+        start = time.perf_counter() + max(0.0, at - time.time())
         while True:
-            t = min(1.0, (time.perf_counter() - start) / ANIMATION_SECONDS)
-            self._set_region(cx, cy, r0 + (r1 - r0) * ease_out(t))
+            now = time.perf_counter()
+            if now < start:
+                time.sleep(start - now)
+                continue
+            t = min(1.0, (now - start) / seconds)
+            self._set_region(cx, cy, r0 + (r1 - r0) * curve(t))
             if t >= 1:
                 return
             time.sleep(1 / 120)
@@ -432,8 +455,16 @@ class DesktopWindow:
         u.SetWindowPos(self.hwnd, None, 0, 0, 0, 0,
                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)
 
-    def _set_page_mode(self, mode: str) -> None:
-        self._js(f"window.jarvisDesktop && window.jarvisDesktop.setMode('{mode}')")
+    def _set_page_mode(self, mode: str, reveal: tuple | None = None) -> None:
+        """Tryb strony; `reveal` = animacja koła (jak w _animate) – strona gra do niej swoją część."""
+        anim = "null"
+        if reveal:
+            cx, cy, r0, r1, seconds, ease, at = reveal
+            s = self._scale
+            anim = json.dumps({"cx": round(cx / s, 1), "cy": round(cy / s, 1), "r0": round(r0 / s, 1),
+                               "r1": round(r1 / s, 1), "ms": round(seconds * 1000), "ease": ease,
+                               "at": round(at * 1000, 1)})
+        self._js(f"window.jarvisDesktop && window.jarvisDesktop.setMode('{mode}', {anim})")
 
     def _send_orb(self) -> None:
         s = self._scale

@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from jarvis.ui.desktop import cover_radius, ease_out, fit_rect, placement
+from jarvis.ui.desktop import cover_radius, ease_in_out, ease_out, fit_rect, placement
 
 WORK = (0, 0, 1920, 1032)  # ekran 1080p bez paska zadań
 
@@ -42,5 +42,6 @@ def test_cover_radius_reaches_every_corner(cx, cy):
     assert all(math.hypot(px - cx, py - cy) <= r for px in (0, 1180) for py in (0, 760))
 
 
-def test_ease_out_bounds():
+def test_easing_bounds():
     assert ease_out(0) == 0 and ease_out(1) == 1 and ease_out(0.5) > 0.5
+    assert ease_in_out(0) == 0 and ease_in_out(1) == 1 and ease_in_out(0.5) == 0.5 and ease_in_out(0.25) < 0.25

@@ -1,4 +1,25 @@
-/* Jarvis – ciemny interfejs w stylu HUD. Bez zewnętrznych czcionek i zależności. */
+/* Jarvis – ciemny interfejs w stylu HUD. Czcionka Archivo jest wbudowana (fonts/, licencja OFL) – działa bez
+   internetu. Ma oś szerokości: zwykła do tekstu, szeroka (--wide, --wordmark) do nagłówków i nazwy Jarvisa. */
+
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../fonts/archivo-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+  src: url("../fonts/archivo-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
   color-scheme: dark;
@@ -34,8 +55,11 @@
   --tap: 44px;
   --state-color: var(--accent);
 
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "DejaVu Sans", "Helvetica Neue", Arial, sans-serif;
+  --font: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, "Noto Sans", "DejaVu Sans", Arial, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Liberation Mono", Menlo, monospace;
+  --wide: 114%; /* font-stretch nagłówków */
+  --wordmark: 125%;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body[data-state="listening"] { --state-color: var(--accent); }
@@ -76,7 +100,7 @@ body {
     radial-gradient(ellipse 60% 40% at 50% 110%, rgba(56, 232, 255, 0.05), transparent 70%),
     var(--bg);
   color: var(--text);
-  font: 15px/1.45 var(--font);
+  font: 15px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -734,9 +758,10 @@ input[type="time"].input {
   gap: 10px;
   min-width: 0;
   color: var(--text);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.3em;
+  font-size: 13px;
+  font-weight: 500;
+  font-stretch: var(--wordmark);
+  letter-spacing: 0.22em;
   white-space: nowrap;
 }
 
@@ -764,7 +789,9 @@ input[type="time"].input {
   border-radius: var(--radius-sm);
   color: var(--text-dim);
   font-size: 14px;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  font-stretch: 108%;
+  letter-spacing: 0.02em;
   text-decoration: none;
   transition: background-color 0.18s, color 0.18s;
 }
@@ -878,11 +905,11 @@ input[type="time"].input {
   margin: 0;
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  font-stretch: var(--wide);
+  letter-spacing: 0.01em;
   text-overflow: ellipsis;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -974,17 +1001,18 @@ input[type="time"].input {
 
 .heard-label {
   color: var(--text-faint);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-weight: 600;
+  font-stretch: var(--wide);
 }
 
 .caption-box {
-  --line-h: 1.42em;
+  --line-h: 1.4em;
   display: grid;
   width: 100%;
   min-height: calc(3 * var(--line-h));
-  font-size: clamp(17px, 0.9vw + 11px, 24px);
+  font-size: clamp(18px, 0.95vw + 11px, 26px);
+  font-weight: 360;
+  letter-spacing: -0.005em;
   line-height: var(--line-h);
 }
 
@@ -1076,7 +1104,9 @@ input[type="time"].input {
   background: rgba(8, 16, 30, 0.8);
   color: var(--text);
   font-size: 15px;
-  letter-spacing: 0.03em;
+  font-weight: 500;
+  font-stretch: 108%;
+  letter-spacing: 0.01em;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
@@ -1264,8 +1294,11 @@ input[type="time"].input {
 .msg-author {
   color: var(--accent);
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-stretch: var(--wide);
+}
+
+.msg-user .msg-author {
+  color: var(--text-dim);
 }
 
 .msg-time {
@@ -1277,10 +1310,9 @@ input[type="time"].input {
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   color: var(--text-dim);
-  font-size: 10.5px;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  letter-spacing: 0.02em;
   line-height: 16px;
-  text-transform: uppercase;
 }
 
 .tag-voice {
@@ -1456,9 +1488,9 @@ input[type="time"].input {
   gap: 10px;
   margin: 4px 0;
   color: var(--text-faint);
-  font-size: 11.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  font-stretch: var(--wide);
 }
 
 .day-sep::before,
@@ -1601,11 +1633,10 @@ input[type="time"].input {
 
 .dom-offline-title {
   margin: 0;
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 500;
+  font-stretch: var(--wide);
 }
 
 .dom-offline-text {
@@ -1651,9 +1682,10 @@ input[type="time"].input {
 .view-title {
   margin: 0;
   color: var(--text);
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 500;
-  letter-spacing: 0.04em;
+  font-stretch: var(--wordmark);
+  letter-spacing: 0.01em;
 }
 
 .sys-pills {
@@ -1776,11 +1808,11 @@ input[type="time"].input {
 
 .card-title {
   margin: 0;
-  color: var(--accent);
-  font-size: 13px;
+  color: var(--text);
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-stretch: var(--wide);
+  letter-spacing: 0.005em;
 }
 
 .card-badge {
@@ -1804,10 +1836,9 @@ input[type="time"].input {
   padding-top: 14px;
   border-top: 1px solid var(--line);
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-stretch: var(--wide);
 }
 
 .secret-badge {
@@ -2099,10 +2130,15 @@ html[data-desktop] .desk-orb {
   transition: opacity 0.22s, box-shadow 0.4s;
 }
 
-html[data-mode="orb"] .desk-orb {
+html[data-mode="orb"]:not([data-anim]) .desk-orb {
   opacity: 1;
   pointer-events: auto;
   cursor: pointer;
+}
+
+/* w trakcie rozwijania i zwijania kulkę zastępuje przelatująca duża kula – bez przenikania */
+html[data-anim] .desk-orb {
+  transition: none;
 }
 
 html[data-mode="orb"] .desk-orb:hover {
@@ -2116,9 +2152,36 @@ html[data-mode="orb"] .desk-orb:hover {
 }
 
 .desk-orb canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+  transition: transform 0.45s var(--ease-out);
+}
+
+/* najechanie – kula lekko pęcznieje, wciśnięcie – kurczy się jak przed wystrzałem */
+html[data-mode="orb"] .desk-orb:hover canvas {
+  transform: scale(1.08);
+}
+
+html[data-mode="orb"] .desk-orb:active canvas {
+  transform: scale(0.92);
+  transition-duration: 0.12s;
+}
+
+/* świecąca krawędź otwieranego koła (js/desktop.js) */
+.desk-reveal {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.orb-wrap {
+  transform-origin: 50% 50%;
 }
 
 /* przyciski okna bez ramki – tylko w oknie Jarvisa (w przeglądarce ich nie ma) */

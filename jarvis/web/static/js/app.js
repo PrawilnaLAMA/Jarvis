@@ -12,6 +12,7 @@ import { initChat } from './chat.js';
 import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
 import { initDesktop } from './desktop.js';
+import { enterUI } from './reveal.js';
 
 const VIEWS = ['jarvis', 'dom', 'settings'];
 
@@ -75,11 +76,8 @@ const views = {
 };
 
 initControls(ctx); // na końcu – Esc najpierw zamyka panele, dopiero potem przerywa mówienie
-initDesktop({
-  ...ctx,
-  // pod zwiniętą kulką duża kula stoi (ostatnia klatka zostaje – rozwinięcie ją tylko odsłania)
-  onModeChange: (mode) => orb.setActive(mode === 'full' && store.get().view === 'jarvis'),
-});
+// pod zwiniętą kulką duża kula stoi wstrzymana; rozwinięcie przenosi ją z miejsca kulki na jej miejsce
+initDesktop({ ...ctx, orb, isOrbView: () => store.get().view === 'jarvis' });
 
 store.subscribe(render);
 render(store.get());
@@ -170,3 +168,9 @@ document.addEventListener('visibilitychange', () => {
 
 showView(viewFromHash());
 socket.connect();
+
+// start strony (przeglądarka, Raspberry Pi): interfejs rozkłada się raz; w oknie z kulką robi to rozwinięcie
+if (!('desktop' in document.documentElement.dataset)) {
+  enterUI(120);
+  if (store.get().view === 'jarvis') orb.playIntro(1400);
+}

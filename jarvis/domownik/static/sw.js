@@ -7,7 +7,7 @@
    CSS/JS jeszcze długo po przebudowie serwera — kosztowałaby godziny zgadywania,
    czemu poprawka "nie weszła". Odświeżenie strony ma po prostu działać. */
 
-const CACHE = 'domownik-v2';  // podbij przy zmianie wyglądu – stara kopia zostanie usunięta
+const CACHE = 'domownik-v3';  // podbij przy zmianie wyglądu – stara kopia zostanie usunięta
 
 /* Strony i pliki, które chcemy mieć pod ręką na wypadek braku sieci. */
 const SHELL = [
@@ -16,6 +16,8 @@ const SHELL = [
   '/kalendarz',
   '/obowiazki',
   '/static/css/style.css',
+  '/static/fonts/archivo-latin.woff2',
+  '/static/fonts/archivo-latin-ext.woff2',
   '/static/js/app.js',
   '/static/js/home.js',
   '/static/js/calendar.js',
