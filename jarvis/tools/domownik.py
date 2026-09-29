@@ -307,7 +307,8 @@ def tools() -> list[Tool]:
         ),
         Tool(
             "chore_add",
-            "Dodaje obowiązek/wydarzenie do kalendarza.",
+            "Dodaje obowiązek/wydarzenie do kalendarza, także przypomnienie („przypomnij mi…”: who=ja, "
+            "bez daty – dziś).",
             params(
                 {
                     "title": {"type": "string", "description": "z godziną, jeśli padła, np. „Trening 18:00”"},
