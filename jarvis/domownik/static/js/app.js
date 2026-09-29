@@ -73,8 +73,34 @@ const Domownik = (() => {
 
   // ---------------------------------------------------------- kafelek dnia --
 
-  /** Buduje <li> pojedynczego obowiązku (dzień + odhaczanie + edycja). */
-  function taskElement(item, { lateBadge = false } = {}) {
+  /** Kolumny osób z base.html: [{key, label, color}] – Leon | Wspólne | Natalia. */
+  const lanes = (() => {
+    try {
+      return JSON.parse(document.getElementById('domLanes')?.textContent || '[]')
+        .map(([key, lane]) => ({ key, ...lane }));
+    } catch {
+      return [];
+    }
+  })();
+
+  /** Czyja kolumna: kto ma tego dnia turę, jedyna osoba, albo wspólne. */
+  const laneOf = (item) => item.kto || (item.assignees?.length ? item.assignees[0] : 'wspolne');
+
+  /** Kolor kolumny zadania – w podglądach (tydzień, kalendarz) kolor mówi „czyje”, nie „jaka kategoria”. */
+  const laneColor = (item) => lanes.find((lane) => lane.key === laneOf(item))?.color || item.color;
+
+  /** Polska odmiana: plural(5, 'dzień', 'dni', 'dni') → 'dni'. */
+  function plural(n, one, few, many) {
+    if (n === 1) return one;
+    const tens = n % 100;
+    return n % 10 >= 2 && n % 10 <= 4 && (tens < 12 || tens > 14) ? few : many;
+  }
+
+  /**
+   * Buduje <li> pojedynczego obowiązku (dzień + odhaczanie + edycja).
+   * `person: false` – bez imienia, gdy lista i tak jest pogrupowana po osobach (kolumny „Dziś”).
+   */
+  function taskElement(item, { lateBadge = false, person = true } = {}) {
     const li = document.createElement('li');
     li.className = `task${item.done ? ' is-done' : ''}`;
     li.style.setProperty('--task-color', item.color);
@@ -85,25 +111,24 @@ const Domownik = (() => {
     li.setAttribute('aria-pressed', String(item.done));
 
     const late = lateBadge && item.days_late
-      ? `<span class="badge-late">${item.days_late} dni temu</span>` : '';
+      ? `<span class="badge-late">${item.days_late} ${plural(item.days_late, 'dzień', 'dni', 'dni')} temu</span>` : '';
     const prio = item.priority === 'wysoki' ? '<span class="prio-high">ważne</span>' : '';
-    const person = item.kto_label
-      ? `<span class="task__person" style="--person:${item.color}">${esc(item.kto_label)}${item.na_zmiane ? icon('repeat') : ''}</span>` : '';
+    const who = person && item.kto_label
+      ? `<span class="task__person" style="--person:${item.color}">${esc(item.kto_label)}</span>` : '';
+    const turn = item.na_zmiane ? `<span class="task__turn" title="${esc(item.assignees_label)}">${icon('repeat')} na zmianę</span>` : '';
     // obowiązek przesunięty przez planer — mówimy skąd i dlaczego
     const moved = item.przeniesiony_z
       ? `<span class="task__moved" title="${esc(item.powod || '')}">↷ z ${esc(dayShort(item.przeniesiony_z))}</span>` : '';
     const note = item.notes ? `<p class="task__note">${esc(item.notes)}</p>` : '';
 
     li.innerHTML = `
-      <span class="task__check"><span>✓</span></span>
-      <span class="task__icon">${esc(item.icon)}</span>
+      <span class="task__check" aria-hidden="true">${icon('check')}</span>
       <span class="task__body">
-        <span class="task__title">${esc(item.title)}</span>
+        <span class="task__title"><span class="task__icon" aria-hidden="true">${esc(item.icon)}</span>${esc(item.title)}</span>
         <span class="task__meta">
-          ${person}${moved}
-          <span class="task__tag">${esc(item.category_label)}</span>
+          ${who}${prio}${late}
           <span>${esc(item.repeat_label)}</span>
-          ${prio}${late}
+          ${turn}${moved}
         </span>
         ${note}
       </span>
@@ -122,17 +147,20 @@ const Domownik = (() => {
     return li;
   }
 
+  /** Odhacza (albo cofa) jedno wystąpienie obowiązku i odświeża widoki. */
+  async function setDone(id, date, done) {
+    const res = await api('/api/odhacz', { method: 'POST', body: { id, date, done } });
+    notifyChanged({ reason: 'toggle', id, date, done, stats: res.stats });
+    return res;
+  }
+
   async function toggleDone(li, item) {
     const next = !li.classList.contains('is-done');
     li.classList.toggle('is-done', next);      // optymistycznie — bez czekania
     li.setAttribute('aria-pressed', String(next));
     try {
-      const res = await api('/api/odhacz', {
-        method: 'POST',
-        body: { id: item.id, date: item.date, done: next },
-      });
+      await setDone(item.id, item.date, next);
       item.done = next;
-      notifyChanged({ reason: 'toggle', id: item.id, date: item.date, done: next, stats: res.stats });
     } catch (err) {
       li.classList.toggle('is-done', !next);
       li.setAttribute('aria-pressed', String(!next));
@@ -140,12 +168,13 @@ const Domownik = (() => {
     }
   }
 
-  /** Mały kafelek obowiązku (podgląd w kolejnych dniach / kalendarzu). */
+  /** Mały wpis obowiązku (kolejne dni) – kropka w kolorze osoby, której przypada. */
   function miniTask(item) {
     const el = document.createElement('div');
     el.className = `mini-task${item.done ? ' is-done' : ''}`;
-    el.style.setProperty('--task-color', item.color);
-    el.innerHTML = `<span>${esc(item.icon)}</span><span class="mini-task__title">${esc(item.title)}</span>`;
+    el.style.setProperty('--task-color', laneColor(item));
+    el.title = item.kto_label ? `${item.title} – ${item.kto_label}` : `${item.title} – wspólne`;
+    el.innerHTML = `<span class="mini-task__dot" aria-hidden="true"></span><span class="mini-task__title">${esc(item.title)}</span>`;
     return el;
   }
 
@@ -433,5 +462,8 @@ const Domownik = (() => {
     });
   }
 
-  return { api, esc, icon, toast, taskElement, miniTask, newChore, openChore, notifyChanged, todayISO, dayShort };
+  return {
+    api, esc, icon, toast, taskElement, miniTask, newChore, openChore, notifyChanged, todayISO, dayShort,
+    plural, setDone, lanes, laneOf, laneColor,
+  };
 })();

@@ -39,7 +39,7 @@
     li.style.setProperty('--task-color', item.color);
     li.innerHTML = `
       <button type="button" class="shop-item__check" aria-pressed="${item.done}"
-              aria-label="${item.done ? 'Cofnij' : 'Kupione'}">${item.done ? '✓' : ''}</button>
+              aria-label="${item.done ? 'Cofnij' : 'Kupione'}">${Domownik.icon('check')}</button>
       <button type="button" class="shop-item__body">
         <span class="shop-item__title">${esc(item.title)}</span>
         ${item.qty ? `<span class="shop-item__qty">${esc(item.qty)}</span>` : ''}
@@ -58,9 +58,9 @@
     return li;
   }
 
-  function group(head, color, list) {
+  function group(head, color, list, extra = '') {
     const box = document.createElement('section');
-    box.className = 'shop-group';
+    box.className = `shop-group ${extra}`.trim();
     box.style.setProperty('--task-color', color);
     const title = document.createElement('h3');
     title.className = 'shop-group__head';
@@ -81,7 +81,7 @@
       const inGroup = left.filter((i) => i.category === key);
       if (inGroup.length) blocks.push(group(`${cat.icon} ${esc(cat.label)}`, cat.color, inGroup));
     }
-    if (bought.length) blocks.push(group('✓ Kupione', 'var(--ok)', bought));
+    if (bought.length) blocks.push(group('Kupione', 'var(--ok)', bought, 'shop-group--bought'));
 
     el.groups.replaceChildren(...blocks);
     el.empty.hidden = items.length > 0;

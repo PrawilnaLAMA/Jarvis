@@ -2,69 +2,50 @@
 {% block title %}Dziś · Domownik{% endblock %}
 
 {% block content %}
-<section class="hero">
-  <div class="hero__text">
+<section class="today-head">
+  <div class="today-head__text">
     <p class="eyebrow" id="heroDate">&nbsp;</p>
-    <h1 class="hero__title" id="heroGreeting">Cześć!</h1>
-    <p class="hero__sub" id="heroSummary">Ładuję plan dnia…</p>
-
-    <ul class="shifts" id="heroShifts" hidden></ul>
-
-    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress">
-      <div class="progress__fill" id="progressFill"></div>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat">
-        <span class="stat__value" id="statStreak">0</span>
-        <span class="stat__label">dni serii 🔥</span>
-      </div>
-      <div class="stat">
-        <span class="stat__value" id="statWeek">0</span>
-        <span class="stat__label">zrobione w 7 dni</span>
-      </div>
-      <div class="stat">
-        <span class="stat__value" id="statActive">0</span>
-        <span class="stat__label">aktywnych obowiązków</span>
-      </div>
-    </div>
+    <h1 class="today-head__title" id="heroGreeting">Cześć!</h1>
+    <p class="today-head__sub" id="heroSummary">Ładuję plan dnia…</p>
   </div>
-
-  <div class="hero__dog">
-    <div class="bubble" id="dogBubble">Hau! Ogarniamy dziś dom?</div>
-    {% include "_dog.html" %}
-    <p class="dog-name">Atom</p>
+  {# pierścień jak reaktor Jarvisa: jeden segment = jedno dzisiejsze zadanie, świeci po odhaczeniu #}
+  <div class="reactor" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+       aria-label="Postęp na dziś">
+    <svg class="reactor__ring" id="reactorRing" viewBox="0 0 120 120" aria-hidden="true"></svg>
+    <span class="reactor__value" id="reactorValue">—</span>
+    <span class="reactor__label" id="reactorLabel">na dziś</span>
   </div>
 </section>
 
-<section class="card card--warn" id="overdueCard" hidden>
-  <header class="card__head">
-    <h2>{{ icon('clock') }} Zaległości</h2>
-    <span class="counter" id="overdueCounter"></span>
-    <button type="button" class="btn btn--ghost btn--sm" id="toggleOverdue">Zwiń</button>
+<section class="overdue" id="overdueCard" hidden>
+  <header class="overdue__head">
+    <h2>{{ icon('clock') }} Zaległe</h2>
+    <span class="overdue__summary" id="overdueCounter"></span>
+    <button type="button" class="btn btn--ghost btn--sm" id="toggleOverdue" aria-expanded="true">Zwiń</button>
   </header>
-  <ul class="task-list" id="overdueList"></ul>
+  <ul class="overdue__list" id="overdueList"></ul>
 </section>
 
-<section class="card card--today">
-  <header class="card__head">
-    <h2>Na dziś</h2>
-    <span class="counter" id="todayCounter">—</span>
-    <button type="button" class="btn btn--soft btn--sm" data-new-chore>{{ icon('plus') }} Dodaj</button>
-  </header>
-  <ul class="task-list" id="todayList"></ul>
-  <div class="empty" id="todayEmpty" hidden>
-    <span class="empty__icon">🦴</span>
-    <p><strong>Dziś nic nie zaplanowane.</strong><br>Atom proponuje odpoczynek albo nowy obowiązek.</p>
-  </div>
+<section class="lanes" aria-label="Plan na dziś">
+  {% for key, lane in lanes %}
+    <article class="lane" data-lane="{{ key }}" style="--person: {{ lane.color }}">
+      <header class="lane__head">
+        <h2 class="lane__name">{{ lane.label }}</h2>
+        <span class="lane__count" data-lane-count></span>
+      </header>
+      <p class="lane__shift" data-lane-shift hidden></p>
+      <ul class="task-list" data-lane-list></ul>
+      <p class="lane__empty" data-lane-empty hidden>Nic na dziś.</p>
+    </article>
+  {% endfor %}
 </section>
 
-<section class="upcoming">
+<section class="week">
   <div class="section-head">
     <h2>Kolejne dni</h2>
-    <a class="link" href="{{ url_for('dom.page_calendar') }}">zobacz cały kalendarz →</a>
+    <a class="link" href="{{ url_for('dom.page_calendar') }}">Cały kalendarz</a>
   </div>
-  <div class="upcoming-grid" id="upcomingGrid"></div>
+  <div class="week__grid" id="upcomingGrid"></div>
 </section>
 {% endblock %}
 

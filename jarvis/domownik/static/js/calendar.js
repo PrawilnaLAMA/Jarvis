@@ -58,6 +58,7 @@
       const shift = document.createElement('span');
       shift.className = 'cal-day__shift';
       shift.title = pracujacy.map((z) => z.opis).join('\n');
+      shift.style.setProperty('--person', pracujacy[0].color);
       pracujacy.forEach((z) => {
         const kto = document.createElement('b');
         kto.textContent = z.initial;
@@ -80,8 +81,8 @@
     cell.items.slice(0, MAX_CHIPS).forEach((item) => {
       const chip = document.createElement('span');
       chip.className = `cal-chip${item.done ? ' is-done' : ''}`;
-      chip.style.setProperty('--chip-color', item.color);
-      chip.textContent = `${item.icon} ${item.title}`;
+      chip.style.setProperty('--chip-color', Domownik.laneColor(item)); // czyje: Leon, Natalia, wspólne
+      chip.textContent = item.title;
       items.appendChild(chip);
     });
     if (cell.items.length > MAX_CHIPS) {
@@ -97,7 +98,7 @@
     dots.className = 'cal-day__count';
     cell.items.slice(0, 6).forEach((item) => {
       const dot = document.createElement('i');
-      dot.style.setProperty('--chip-color', item.color);
+      dot.style.setProperty('--chip-color', Domownik.laneColor(item));
       if (item.done) dot.style.opacity = '.35';
       dots.appendChild(dot);
     });
@@ -121,9 +122,28 @@
     el.panelWeekday.textContent = cell.label === cell.weekday ? cell.weekday : `${cell.label} · ${cell.weekday}`;
     el.panelDate.textContent = cell.long;
     el.panelCounter.textContent = cell.total ? `${cell.done} / ${cell.total}` : 'wolne';
-    el.panelList.replaceChildren(...cell.items.map((item) => taskElement(item)));
+    el.panelList.replaceChildren(...panelGroups(cell.items));
     el.panelEmpty.hidden = cell.items.length > 0;
     renderShifts(cell.date);
+  }
+
+  /** Zadania dnia pogrupowane po osobach, jak kolumny na ekranie „Dziś”. */
+  function panelGroups(items) {
+    const out = [];
+    for (const lane of Domownik.lanes) {
+      const mine = items.filter((item) => Domownik.laneOf(item) === lane.key);
+      if (!mine.length) continue;
+      const head = document.createElement('li');
+      head.className = 'panel-lane';
+      head.style.setProperty('--person', lane.color);
+      head.textContent = lane.label;
+      out.push(head, ...mine.map((item) => {
+        const li = taskElement(item, { person: false });
+        li.style.setProperty('--task-color', lane.color);
+        return li;
+      }));
+    }
+    return out;
   }
 
   /** Grafik pracy w panelu dnia + ręczna poprawka „ma wolne / pracuje". */

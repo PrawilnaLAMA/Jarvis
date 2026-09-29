@@ -28,8 +28,15 @@ def test_pages_have_jarvis_look(client):
         assert '<use href="#i-calendar"/>' in html  # ikony SVG w zakładkach
         assert 'name="color-scheme" content="dark"' in html and "themeToggle" not in html
     missing = client.get("/nie-ma")
-    assert missing.status_code == 404 and "Tu nic nie ma" in missing.get_data(as_text=True)
+    assert missing.status_code == 404 and "Nie ma takiej strony" in missing.get_data(as_text=True)
     assert client.get("/api/nie-ma").get_json() == {"error": "Nie ma takiego zasobu."}
+
+
+def test_today_is_split_into_person_lanes(client):
+    html = client.get("/").get_data(as_text=True)
+    lanes = [html.index(f'data-lane="{key}"') for key in ("leon", "wspolne", "natalia")]
+    assert lanes == sorted(lanes)  # Leon | Wspólne | Natalia
+    assert 'id="domLanes"' in html and "Wspólne" in html
 
 
 def test_pwa_routes(client):

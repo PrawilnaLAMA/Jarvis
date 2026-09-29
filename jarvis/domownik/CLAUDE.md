@@ -152,12 +152,18 @@ instalacji nie będzie, dopiero po `tailscale serve` (HTTPS).
 ### Wygląd
 
 `static/css/style.css` – wygląd Jarvisa (tokeny jak w `jarvis/web/static/css/app.css`: granat, cyjan
-`#38e8ff`, siatka HUD, znacznik w rogu kart). **Tylko ciemny motyw.** Ikony interfejsu to sprite SVG
-`templates/_ikony.html`, w szablonach `{{ icon('nazwa') }}`, w JS `Domownik.icon('nazwa')`. Emotki
-zostają tylko jako dane (kategorie, działy) i przy Atomie.
+`#38e8ff`, siatka HUD, znacznik w rogu kart, czcionka Archivo). **Tylko ciemny motyw.** Ikony interfejsu to
+sprite SVG `templates/_ikony.html`, w szablonach `{{ icon('nazwa') }}`, w JS `Domownik.icon('nazwa')`. Emotki
+zostają tylko jako dane (kategorie, działy). Maskotki (Atom) już nie ma – użytkownik wybrał czysty wygląd.
 
-`templates/_dog.html` – Atom, owczarek niemiecki (inline SVG). Animacje wiszą na klasach
-`dog-tail-wrap`, `dog-head`, `dog-eyes`; kolory sierści w zmiennych `--dog-*`.
+**Ekran „Dziś” to kolumny osób** Leon | Wspólne | Natalia (`web._lanes()`, JSON `#domLanes` w `base.html`,
+`Domownik.lanes`). Zadanie trafia do kolumny `Domownik.laneOf(item)`: `kto` (czyja tura), jedyna osoba albo
+wspólne. Kolumny podpisujemy imionami, nie „twoje” – z telefonu korzysta też Natalia. W podglądach (tydzień,
+kalendarz, panel dnia) kolor mówi „czyje” (`laneColor`), nie „jaka kategoria”. Zaległości są zgrupowane po
+obowiązku (daty do odhaczenia jako `date-chip`, `Domownik.setDone`), domyślnie zwinięte do jednej linii –
+bez tego 25 wystąpień „nakarmić rybki” zakrywało plan dnia. Pierścień postępu (`.reactor`) ma segment na
+każde dzisiejsze zadanie.
 
-Kalendarz to CSS Grid 7 × `1fr`; `.cal-day` **musi** mieć `min-width: 0`. Karty mają `::before`
-(znacznik HUD) pozycjonowany względem karty – nie dawaj karcie `position: static`.
+Kalendarz i tydzień to siatki z cienkimi liniami (tło = kolor linii, `gap: 1px`); `.cal-day` **musi** mieć
+`min-width: 0`. Karty mają `::before` (znacznik HUD) pozycjonowany względem karty – nie dawaj karcie
+`position: static`.

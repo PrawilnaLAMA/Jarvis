@@ -58,8 +58,11 @@
   </main>
 
   <footer class="footer">
-    <span>🐾 Domownik działa w Jarvisie — dane leżą w <code>data/domownik/chores.json</code>.</span>
+    <span>Domownik działa w Jarvisie — dane leżą w <code>data/domownik/chores.json</code>.</span>
   </footer>
+
+  {# kolumny osób (Leon | Wspólne | Natalia) – dla app.js, ta sama kolejność co na ekranie „Dziś” #}
+  <script type="application/json" id="domLanes">{{ lanes | tojson }}</script>
 
   {# ---------------------------------------------------- modal obowiązku -- #}
   <div class="modal" id="choreModal" hidden>

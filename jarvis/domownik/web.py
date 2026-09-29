@@ -107,9 +107,22 @@ def _bootstrap(store: Store) -> None:
             state["settings"]["seeded"] = True
 
 
+# kolumna obowiazkow bez osoby (kolor jak chip "Wspolne" w formularzu)
+SHARED_LANE = {"label": "Wspólne", "color": "#8fa3b8"}
+
+
+def _lanes() -> list[tuple[str, dict]]:
+    """Plan dnia pogrupowany po osobach: pierwsza osoba | wspolne | reszta (Leon | Wspolne | Natalia)."""
+    people = [(key, {"label": p["label"], "color": p["color"]}) for key, p in core.PEOPLE.items()]
+    return [people[0], ("wspolne", SHARED_LANE), *people[1:]]
+
+
 def _page(template: str, page: str, **extra):
-    # base.html trzyma wspolny modal obowiazku - potrzebuje categories i people na KAZDEJ stronie
-    return render_template(template, page=page, categories=core.CATEGORIES, people=core.PEOPLE, **extra)
+    # base.html trzyma wspolny modal obowiazku - potrzebuje categories i people na KAZDEJ stronie,
+    # a lanes (kolumny osob) czyta takze app.js (panel dnia w kalendarzu)
+    return render_template(
+        template, page=page, categories=core.CATEGORIES, people=core.PEOPLE, lanes=_lanes(), **extra
+    )
 
 
 # ------------------------------------------------------------------ strony --
