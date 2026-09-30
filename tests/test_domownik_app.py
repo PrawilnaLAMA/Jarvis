@@ -76,6 +76,23 @@ def test_chore_lifecycle(client):
     assert client.delete(f"/api/obowiazki/{chore_id}").status_code == 404
 
 
+def test_day_is_ordered_by_time(client):
+    for title, time in (("Pranie", None), ("Dentysta", "15:00"), ("Śniadanie", "8:30"), ("Obiad", "13")):
+        body = {"title": title, "start_date": DAY, "time": time, "assignees": ["leon"]}
+        assert client.post("/api/obowiazki", json=body).status_code == 201
+    done_id = next(c["id"] for c in client.get("/api/obowiazki").get_json()["chores"] if c["title"] == "Śniadanie")
+    client.post("/api/odhacz", json={"id": done_id, "date": DAY})
+
+    agenda = client.get(f"/api/agenda?od={DAY}&dni=1&dzis={DAY}").get_json()
+    items = [(i["time"], i["title"]) for i in agenda["days"][0]["items"] if i["title"] != "Pozmywać naczynia"]
+    # z godziną chronologicznie (także zrobione), bez godziny na końcu
+    assert items[:3] == [("08:30", "Śniadanie"), ("13:00", "Obiad"), ("15:00", "Dentysta")]
+    assert all(time == "" for time, _ in items[3:]) and ("", "Pranie") in items[3:]
+
+    bad = client.post("/api/obowiazki", json={"title": "x", "time": "25:00"})
+    assert bad.status_code == 400 and "godzina" in bad.get_json()["error"]
+
+
 def test_repeat_rules():
     def chore(repeat, start="2026-01-31"):
         return core.normalize_chore({"title": "x", "start_date": start, "repeat": repeat})

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import calendar
+import re
 import uuid
 from datetime import date, datetime, timedelta
 
@@ -73,6 +74,16 @@ def parse_date(value, field: str = "data") -> date:
         return date.fromisoformat(str(value))
     except (TypeError, ValueError):
         raise ValidationError(f"Nieprawidłowa {field}: {value!r} (oczekiwano RRRR-MM-DD).") from None
+
+
+def parse_time(value) -> str | None:
+    """Godzina 'GG:MM' albo None (obowiazek bez godziny). Przyjmuje tez '15', '9:05', '15.30'."""
+    if value is None or str(value).strip() == "":
+        return None
+    m = re.fullmatch(r"(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?", str(value).strip())
+    if not m or int(m.group(1)) > 23 or int(m.group(2) or 0) > 59:
+        raise ValidationError(f"Nieprawidłowa godzina: {value!r} (oczekiwano GG:MM).")
+    return f"{int(m.group(1)):02d}:{int(m.group(2) or 0):02d}"
 
 
 def format_long(day: date) -> str:
@@ -170,6 +181,7 @@ def normalize_chore(payload: dict, existing: dict | None = None) -> dict:
         "assignees": assignees,
         "start_date": start.isoformat(),
         "end_date": end.isoformat() if end else None,
+        "time": parse_time(payload.get("time", base.get("time"))),
         "repeat": _normalize_repeat(payload.get("repeat", base.get("repeat")), start),
         "archived": bool(payload.get("archived", base.get("archived", False))),
         "created_at": base.get("created_at") or datetime.now().isoformat(timespec="seconds"),
@@ -367,12 +379,18 @@ def chore_view(chore: dict, state: dict, day: date, decyzja: dict | None = None)
         "repeat_label": repeat_label(chore),
         "repeat_type": (chore.get("repeat") or {}).get("type", "brak"),
         "date": day.isoformat(),
+        "time": chore.get("time") or "",
         "done": is_done(state, chore["id"], day),
     }
 
 
 def _sort_key(item: dict) -> tuple:
+    """Najpierw wpisy z godzina, chronologicznie (takze zrobione - to plan dnia),
+    potem obowiazki bez godziny: niezrobione, waznosc, nazwa."""
+    time = item.get("time") or ""
     return (
+        not time,
+        time,
         item["done"],
         PRIORITIES.get(item["priority"], PRIORITIES[DEFAULT_PRIORITY])["rank"],
         item["title"].lower(),

@@ -8,7 +8,15 @@ from jarvis.services.domownik_client import DomownikClient, DomownikError
 from jarvis.settings import SettingsStore
 from jarvis.tools import ToolContext
 from jarvis.tools.base import ToolError
-from jarvis.tools.domownik import _best_matches, chore_done, house_agenda, open_domownik, shopping_list, shopping_update
+from jarvis.tools.domownik import (
+    _best_matches,
+    chore_add,
+    chore_done,
+    house_agenda,
+    open_domownik,
+    shopping_list,
+    shopping_update,
+)
 
 NOW = datetime(2025, 11, 3, 12, 0)  # poniedziałek
 
@@ -138,3 +146,16 @@ def test_open_domownik_opens_page(ctx, recorder):
     assert open_domownik(ctx, {}) == "Otwieram kalendarz."
     navigations = [e.data for e in recorder.events if e.topic == "ui.navigate"]
     assert navigations == [{"view": "dom", "path": "/zakupy"}, {"view": "dom", "path": "/kalendarz"}]
+
+
+def test_chore_add_keeps_time_separately(ctx):
+    reply = chore_add(ctx, {"title": "Spotkanie z Kasią", "time": "15"})
+    assert reply == "Dodałem do kalendarza: Spotkanie z Kasią, dziś o 15:00, wspólne."
+    assert ctx.domownik.added[-1]["time"] == "15:00" and ctx.domownik.added[-1]["start_date"] == "2025-11-03"
+    # model wpisał godzinę do tytułu – przenosimy ją do pola
+    chore_add(ctx, {"title": "Dentysta 14:30"})
+    assert ctx.domownik.added[-1]["title"] == "Dentysta" and ctx.domownik.added[-1]["time"] == "14:30"
+    chore_add(ctx, {"title": "Urodziny Asi 15.03"})  # to data, nie godzina
+    assert ctx.domownik.added[-1]["title"] == "Urodziny Asi 15.03" and ctx.domownik.added[-1]["time"] is None
+    with pytest.raises(ToolError, match="godziny"):
+        chore_add(ctx, {"title": "X", "time": "później"})

@@ -124,7 +124,7 @@ const Domownik = (() => {
     li.innerHTML = `
       <span class="task__check" aria-hidden="true">${icon('check')}</span>
       <span class="task__body">
-        <span class="task__title"><span class="task__icon" aria-hidden="true">${esc(item.icon)}</span>${esc(item.title)}</span>
+        <span class="task__title"><span class="task__icon" aria-hidden="true">${esc(item.icon)}</span>${timeTag(item)}${esc(item.title)}</span>
         <span class="task__meta">
           ${who}${prio}${late}
           <span>${esc(item.repeat_label)}</span>
@@ -168,13 +168,18 @@ const Domownik = (() => {
     }
   }
 
+  /** Godzina wpisu przed nazwą („15:00”) – pusto dla obowiązków bez godziny. */
+  function timeTag(item) {
+    return item.time ? `<time class="task__time">${esc(item.time)}</time>` : '';
+  }
+
   /** Mały wpis obowiązku (kolejne dni) – kropka w kolorze osoby, której przypada. */
   function miniTask(item) {
     const el = document.createElement('div');
     el.className = `mini-task${item.done ? ' is-done' : ''}`;
     el.style.setProperty('--task-color', laneColor(item));
     el.title = item.kto_label ? `${item.title} – ${item.kto_label}` : `${item.title} – wspólne`;
-    el.innerHTML = `<span class="mini-task__dot" aria-hidden="true"></span><span class="mini-task__title">${esc(item.title)}</span>`;
+    el.innerHTML = `<span class="mini-task__dot" aria-hidden="true"></span><span class="mini-task__title">${timeTag(item)}${esc(item.title)}</span>`;
     return el;
   }
 
@@ -248,6 +253,7 @@ const Domownik = (() => {
     fld('title').value = chore.title;
     fld('notes').value = chore.notes || '';
     fld('start_date').value = chore.start_date;
+    fld('time').value = chore.time || '';
     fld('end_date').value = chore.end_date || '';
     fld('priority').value = chore.priority || 'normalny';
     fld('archived').checked = !!chore.archived;
@@ -319,6 +325,7 @@ const Domownik = (() => {
       assignees: fd.getAll('assignees'),
       notes: fd.get('notes') || '',
       start_date: fd.get('start_date') || todayISO(),
+      time: fd.get('time') || null,
       end_date: fd.get('end_date') || null,
       archived: fd.get('archived') === 'on',
       repeat,

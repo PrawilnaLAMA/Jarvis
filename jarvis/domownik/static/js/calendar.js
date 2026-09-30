@@ -82,7 +82,7 @@
       const chip = document.createElement('span');
       chip.className = `cal-chip${item.done ? ' is-done' : ''}`;
       chip.style.setProperty('--chip-color', Domownik.laneColor(item)); // czyje: Leon, Natalia, wspólne
-      chip.textContent = item.title;
+      chip.textContent = item.time ? `${item.time} ${item.title}` : item.title;
       items.appendChild(chip);
     });
     if (cell.items.length > MAX_CHIPS) {

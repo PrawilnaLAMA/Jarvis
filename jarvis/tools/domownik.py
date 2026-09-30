@@ -17,6 +17,8 @@ WHO = {"ja": ["leon"], "natalia": ["natalia"], "na_zmiane": ["leon", "natalia"],
 _WHO_TEXT = {"ja": "dla ciebie", "natalia": "dla Natalii", "na_zmiane": "na zmianę z Natalią", "wspolne": "wspólne"}
 _DATE = {"type": "string", "description": "RRRR-MM-DD"}
 _ASCII = str.maketrans("ąćęłńóśźż", "acelnoszz")  # Whisper nie zawsze stawia polskie znaki
+# godzina w tytule („Dentysta 14:00”, „Trening o 18”), gdy model nie poda jej w polu time
+_TITLE_TIME = re.compile(r"\s+(?:(?:o|godz\.?)\s*(\d{1,2}(?:[:.]\d{2})?)|(\d{1,2}:\d{2}))$", re.IGNORECASE)
 
 
 def _call(fn, *args, **kwargs):
@@ -25,6 +27,27 @@ def _call(fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except DomownikError as e:
         raise ToolError(str(e)) from e
+
+
+def _parse_time(value: Any) -> str | None:
+    """„15”, „15:30”, „9.05” → „GG:MM”; pusto → None."""
+    if value is None or str(value).strip() == "":
+        return None
+    m = re.fullmatch(r"(\d{1,2})(?:[:.](\d{2}))?(?::\d{2})?", str(value).strip())
+    if not m or int(m.group(1)) > 23 or int(m.group(2) or 0) > 59:
+        raise ToolError("Nie rozumiem podanej godziny.")
+    return f"{int(m.group(1)):02d}:{int(m.group(2) or 0):02d}"
+
+
+def _split_title_time(title: str) -> tuple[str, str | None]:
+    """„Dentysta 14:00” → („Dentysta”, „14:00”); tytuł bez godziny na końcu zostaje bez zmian."""
+    m = _TITLE_TIME.search(title)
+    if not m:
+        return title, None
+    try:
+        return title[: m.start()].strip(), _parse_time(m.group(1) or m.group(2))
+    except ToolError:
+        return title, None
 
 
 def _parse_day(value: Any, default: date) -> date:
@@ -81,13 +104,14 @@ def _person(item: dict[str, Any]) -> str:
 
 def _item_text(item: dict[str, Any]) -> str:
     notes = []
+    title = f"{item['time']} {item['title']}" if item.get("time") else item["title"]
     if item.get("na_zmiane"):
         notes.append("na zmianę")
     if item.get("done"):
         notes.append("zrobione")
     if item.get("przeniesiony_z"):
         notes.append(f"przeniesione z {item['przeniesiony_z']}")
-    return f"{item['title']} ({', '.join(notes)})" if notes else item["title"]
+    return f"{title} ({', '.join(notes)})" if notes else title
 
 
 def _by_person(groups: dict[str, list[str]]) -> str:
@@ -177,6 +201,9 @@ def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
     title = str(args.get("title", "")).strip()
     if not title:
         raise ToolError("Nie wiem, co mam dodać.")
+    time = _parse_time(args.get("time"))
+    if time is None:
+        title, time = _split_title_time(title)
     today = ctx.clock().date()
     start = _parse_day(args.get("start_date"), today)
     repeat, repeat_text = _repeat_payload(args, start)
@@ -184,6 +211,7 @@ def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
     payload = {
         "title": title,
         "start_date": start.isoformat(),
+        "time": time,
         "repeat": repeat,
         "assignees": WHO[who],
         "category": args.get("category") if args.get("category") in CATEGORIES else "inne",
@@ -193,6 +221,8 @@ def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
     when = repeat_text or describe_day(start, today)
     if repeat_text and start > today:
         when += f", od {describe_day(start, today)}"
+    if time:
+        when += f" o {time}"
     return f"Dodałem do kalendarza: {title}, {when}, {_WHO_TEXT[who]}."
 
 
@@ -218,7 +248,8 @@ def chore_info(ctx: ToolContext, args: dict[str, Any]) -> str:
     who = c.get("assignees_label") or "wspólne"
     if c.get("na_zmiane"):
         who += " (na zmianę)"
-    return (f"{c['title']}: {c.get('repeat_label', '')}, {who}, następny raz {c.get('next_date') or 'brak'}, "
+    at = f" o {c['time']}" if c.get("time") else ""
+    return (f"{c['title']}: {c.get('repeat_label', '')}{at}, {who}, następny raz {c.get('next_date') or 'brak'}, "
             f"zrobione {c.get('done_count', 0)} razy.")
 
 
@@ -311,8 +342,9 @@ def tools() -> list[Tool]:
             "bez daty – dziś).",
             params(
                 {
-                    "title": {"type": "string", "description": "z godziną, jeśli padła, np. „Trening 18:00”"},
+                    "title": {"type": "string", "description": "bez godziny"},
                     "start_date": _DATE,
+                    "time": {"type": "string", "description": "GG:MM, jeśli padła godzina („na 15” = 15:00)"},
                     "repeat": {"type": "string", "enum": REPEAT_TYPES},
                     "interval": {"type": "integer", "description": "dla co_x_dni"},
                     "weekdays": {"type": "array", "items": {"type": "string", "enum": WEEKDAYS}},
