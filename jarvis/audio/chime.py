@@ -12,3 +12,7 @@ def _tone(freq: float, seconds: float, volume: float) -> np.ndarray:
 
 
 CHIME = np.concatenate([_tone(880, 0.07, 0.12), _tone(1320, 0.09, 0.12)])
+
+# przypomnienie z kalendarza: dwa razy wznoszące się trzy tony, głośniej niż CHIME
+_REMINDER_ONCE = np.concatenate([_tone(660, 0.1, 0.2), _tone(880, 0.1, 0.2), _tone(1320, 0.16, 0.2)])
+REMINDER = np.concatenate([_REMINDER_ONCE, np.zeros(int(TTS_SAMPLE_RATE * 0.12), np.float32), _REMINDER_ONCE])

@@ -171,6 +171,17 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
             return _error(404, "Tego minutnika już nie ma.")
         return {"timers": timers.snapshot()}
 
+    # --- przypomnienia z kalendarza (czerwona kula do kliknięcia) ---
+
+    @api.get("/api/reminders")
+    def reminders_list() -> dict[str, Any]:
+        return {"pending": jarvis.reminders.pending()}
+
+    @api.post("/api/reminders/ack")
+    def reminders_ack() -> dict[str, Any]:
+        jarvis.reminders.ack()
+        return {"pending": jarvis.reminders.pending()}
+
     # --- autostart z Windowsem ---
 
     @api.get("/api/autostart")
@@ -304,7 +315,7 @@ def create_app(jarvis: JarvisApp) -> FastAPI:
         send_task = asyncio.create_task(sender())
         try:
             hello = {"state": jarvis.tracker.state, "status": jarvis.status(), "history": list(hub.history),
-                     "timers": jarvis.timers.snapshot()}
+                     "timers": jarvis.timers.snapshot(), "reminders": jarvis.reminders.pending()}
             await ws.send_json({"topic": "hello", "data": hello, "ts": time.time()})
             while True:
                 await _handle_client_message(jarvis, await ws.receive_json())

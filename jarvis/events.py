@@ -17,6 +17,8 @@ Tematy (topic) i ich dane:
 - confirm.done     {id, status: done|failed|cancelled|expired, output}
 - timers           {timers: [{id, label, total, remaining, paused}]}  – cała lista po każdej zmianie (s)
 - timer.ring       {id, label, total}                 – minął czas (kula błyska, Jarvis mówi)
+- reminder         {key, id, title, date, time, text, at} – przypomnienie z kalendarza (dźwięk + głos)
+- reminders        {pending: [reminder…]}             – nieodebrane przypomnienia; kula czerwona, dopóki niepusta
 - settings.changed {}
 - ui.navigate      {view: jarvis|dom|settings, path?}  – path: podstrona Domownika, np. /zakupy
 - ui.show          {}                                   – przywołaj okno (drugie uruchomienie Jarvisa)

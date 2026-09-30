@@ -15,6 +15,7 @@ import threading
 import time
 from typing import Any
 
+from jarvis.polish import duration_pl as _duration
 from jarvis.polish import join_pl
 from jarvis.services.timers import MAX_SECONDS as MAX_TIMER_SECONDS
 from jarvis.services.timers import Timers
@@ -354,31 +355,8 @@ def system_info(ctx: ToolContext, args: dict[str, Any]) -> str:
 
 # --- minutnik (odliczanie widać w kuli Jarvisa – services/timers.py) ---
 
-# forma po „na” (biernik) i po „do końca” (mianownik), potem 2–4 i 5+
-_UNITS = (
-    (3600, ("godzinę", "godzina"), "godziny", "godzin"),
-    (60, ("minutę", "minuta"), "minuty", "minut"),
-    (1, ("sekundę", "sekunda"), "sekundy", "sekund"),
-)
 _TIMER_WORDS = {"minutnik", "minutnika", "minutniki", "minutnikow", "timer", "timera", "stoper", "stopera", "na"}
 _ALL_WORDS = {"wszystkie", "wszystkich", "wszystko", "kazdy"}
-
-
-def _duration(seconds: float, nominative: bool = False) -> str:
-    """„2 minuty i 30 sekund”, „1 godzinę, 5 minut i 3 sekundy” – co do sekundy."""
-    rest = max(0, round(seconds))
-    parts = []
-    for size, one, few, many in _UNITS:
-        n, rest = divmod(rest, size)
-        if n:
-            parts.append(f"{n} {_plural(n, one[nominative], few, many)}")
-    return join_pl(parts) or "0 sekund"
-
-
-def _plural(n: int, one: str, few: str, many: str) -> str:
-    if n == 1:
-        return one
-    return few if n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14) else many
 
 
 def _seconds(args: dict[str, Any]) -> float | None:

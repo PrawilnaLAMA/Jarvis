@@ -56,6 +56,10 @@ class DomownikClient:
     def add_chore(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", "/api/obowiazki", json=payload)
 
+    def update_chore(self, chore_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Zmienia wybrane pola obowiązku (reszta zostaje)."""
+        return self._request("PUT", f"/api/obowiazki/{chore_id}", json=payload)
+
     def delete_chore(self, chore_id: str) -> None:
         self._request("DELETE", f"/api/obowiazki/{chore_id}")
 

@@ -30,6 +30,7 @@ class FakeDomownik:
         self.added: list[dict] = []
         self.done_calls: list[tuple] = []
         self.deleted: list[str] = []
+        self.updated: list[tuple] = []
         self.error = None
 
     def _check(self):
@@ -52,6 +53,11 @@ class FakeDomownik:
         self._check()
         self.added.append(payload)
         return {**payload, "id": "new"}
+
+    def update_chore(self, chore_id, payload):
+        self._check()
+        self.updated.append((chore_id, payload))
+        return {**payload, "id": chore_id}
 
     def delete_chore(self, chore_id):
         self._check()

@@ -154,3 +154,11 @@ def test_timers_set_in_the_orb_to_the_second(client):
     assert client.post(url, json={"action": "resume"}).status_code == 404
     assert client.post("/api/timers", json={"seconds": 0}).status_code == 400
     assert client.post("/api/timers", json={"seconds": "pięć"}).status_code == 400
+
+
+def test_reminders_in_hello_and_ack(app, client):
+    app.reminders._pending = [{"key": "k", "title": "Dentysta", "text": "Przypomnienie: Dentysta o 15:00."}]
+    with client.websocket_connect(WS) as ws:
+        assert ws.receive_json()["data"]["reminders"][0]["title"] == "Dentysta"
+    assert client.get("/api/reminders").json()["pending"][0]["key"] == "k"
+    assert client.post("/api/reminders/ack").json() == {"pending": []}

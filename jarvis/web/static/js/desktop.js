@@ -17,7 +17,7 @@ const FLIGHT_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const RING_WIDTH = 38; // px – świecący pas przy brzegu koła
 const TAU = Math.PI * 2;
 
-export function initDesktop({ store, socket, orb: bigOrb, timer, isOrbView }) {
+export function initDesktop({ store, socket, orb: bigOrb, timer, reminders, isOrbView }) {
   const root = document.documentElement;
   const box = $('#desk-orb');
   const wrap = $('#orb-wrap');
@@ -47,6 +47,7 @@ export function initDesktop({ store, socket, orb: bigOrb, timer, isOrbView }) {
     orb = new Orb($('#desk-orb-canvas'));
     socket.on('audio.level', (data) => orb.setLevel(data.source, data.level));
     timer?.attach(orb, $('#desk-orb-face')); // odliczanie widać też w kulce na pulpicie
+    reminders?.attach(orb); // przypomnienie – kulka też czerwona
     const syncState = (s) => orb.setState(assistantState(s));
     store.subscribe(syncState);
     syncState(store.get());
@@ -172,7 +173,10 @@ export function initDesktop({ store, socket, orb: bigOrb, timer, isOrbView }) {
       const moved = press.moved || Math.hypot(event.screenX - press.x, event.screenY - press.y) > DRAG_THRESHOLD;
       press = null;
       if (moved) api.orb_moved();
-      else if (root.dataset.mode === 'orb') api.expand();
+      else if (root.dataset.mode === 'orb') {
+        reminders?.ack(); // klik w czerwoną kulkę odbiera przypomnienie
+        api.expand();
+      }
     });
     box.addEventListener('contextmenu', (event) => {
       event.preventDefault();
@@ -181,6 +185,7 @@ export function initDesktop({ store, socket, orb: bigOrb, timer, isOrbView }) {
     box.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
+        reminders?.ack();
         api.expand();
       }
     });

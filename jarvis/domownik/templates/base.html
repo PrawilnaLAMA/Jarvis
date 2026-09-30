@@ -132,6 +132,20 @@
             <span class="field__label">Godzina (opcjonalnie)</span>
             <input type="time" name="time">
           </label>
+          <label class="field">
+            <span class="field__label">Przypomnienie</span>
+            <select name="remind_before">
+              <option value="" selected>Bez przypomnienia</option>
+              <option value="0">O czasie</option>
+              <option value="5">5 min przed</option>
+              <option value="10">10 min przed</option>
+              <option value="15">15 min przed</option>
+              <option value="30">30 min przed</option>
+              <option value="60">1 h przed</option>
+              <option value="120">2 h przed</option>
+              <option value="1440">Dzień przed</option>
+            </select>
+          </label>
         </div>
 
         <div class="field">

@@ -86,6 +86,37 @@ def parse_time(value) -> str | None:
     return f"{int(m.group(1)):02d}:{int(m.group(2) or 0):02d}"
 
 
+MAX_REMIND_MINUTES = 24 * 60
+
+
+def parse_remind(value, time: str | None) -> int | None:
+    """Ile minut przed godzina przypomniec: None = bez przypomnienia, 0 = o czasie, max doba."""
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        minutes = int(value)
+    except (TypeError, ValueError):
+        raise ValidationError("Przypomnienie musi być liczbą minut.") from None
+    if not 0 <= minutes <= MAX_REMIND_MINUTES:
+        raise ValidationError("Przypomnienie: od 0 minut do doby wcześniej.")
+    if not time:
+        raise ValidationError("Przypomnienie wymaga godziny.")
+    return minutes
+
+
+def remind_label(minutes: int | None) -> str:
+    """'' / 'o czasie' / '15 min przed' / '2 h przed' / 'dzień przed'."""
+    if minutes is None:
+        return ""
+    if minutes == 0:
+        return "o czasie"
+    if minutes == MAX_REMIND_MINUTES:
+        return "dzień przed"
+    if minutes % 60 == 0:
+        return f"{minutes // 60} h przed"
+    return f"{minutes} min przed"
+
+
 def format_long(day: date) -> str:
     return f"{day.day} {MONTHS_GEN[day.month - 1]} {day.year}"
 
@@ -182,10 +213,12 @@ def normalize_chore(payload: dict, existing: dict | None = None) -> dict:
         "start_date": start.isoformat(),
         "end_date": end.isoformat() if end else None,
         "time": parse_time(payload.get("time", base.get("time"))),
+        "remind_before": None,
         "repeat": _normalize_repeat(payload.get("repeat", base.get("repeat")), start),
         "archived": bool(payload.get("archived", base.get("archived", False))),
         "created_at": base.get("created_at") or datetime.now().isoformat(timespec="seconds"),
     }
+    chore["remind_before"] = parse_remind(payload.get("remind_before", base.get("remind_before")), chore["time"])
     return chore
 
 
@@ -380,6 +413,8 @@ def chore_view(chore: dict, state: dict, day: date, decyzja: dict | None = None)
         "repeat_type": (chore.get("repeat") or {}).get("type", "brak"),
         "date": day.isoformat(),
         "time": chore.get("time") or "",
+        "remind_before": chore.get("remind_before"),
+        "remind_label": remind_label(chore.get("remind_before")),
         "done": is_done(state, chore["id"], day),
     }
 

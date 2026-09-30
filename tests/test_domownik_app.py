@@ -93,6 +93,22 @@ def test_day_is_ordered_by_time(client):
     assert bad.status_code == 400 and "godzina" in bad.get_json()["error"]
 
 
+def test_reminder_needs_time_and_range(client):
+    ok = client.post("/api/obowiazki", json={"title": "Dentysta", "start_date": DAY, "time": "15:00",
+                                             "remind_before": 30})
+    assert ok.status_code == 201 and ok.get_json()["remind_before"] == 30
+    item = client.get(f"/api/agenda?od={DAY}&dni=1&dzis={DAY}").get_json()["days"][0]["items"]
+    assert next(i for i in item if i["title"] == "Dentysta")["remind_label"] == "30 min przed"
+    no_time = client.post("/api/obowiazki", json={"title": "x", "remind_before": 10})
+    assert no_time.status_code == 400 and "godziny" in no_time.get_json()["error"]
+    too_far = client.post("/api/obowiazki", json={"title": "x", "time": "9:00", "remind_before": 5000})
+    assert too_far.status_code == 400
+    # PUT tylko z przypomnieniem zostawia resztę
+    chore_id = ok.get_json()["id"]
+    changed = client.put(f"/api/obowiazki/{chore_id}", json={"remind_before": None}).get_json()
+    assert changed["remind_before"] is None and changed["time"] == "15:00"
+
+
 def test_repeat_rules():
     def chore(repeat, start="2026-01-31"):
         return core.normalize_chore({"title": "x", "start_date": start, "repeat": repeat})

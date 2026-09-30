@@ -62,6 +62,11 @@ miejsca: `REPEAT_TYPES`, `_normalize_repeat()`, `occurs_on()`, `repeat_label()`.
 **Kolor liczy tylko `display_color(chore, kto)`** – osoba wygrywa z kategorią, przy obowiązku na zmianę
 kolor zależy od tego, czyja tura. Frontend czyta gotowe `item.color`; nie licz koloru drugi raz.
 
+**Godzina i przypomnienie:** `time` („GG:MM” albo None) i `remind_before` (minuty przed, None = bez,
+0 = o czasie, max doba; wymaga `time`) – `parse_time()`/`parse_remind()` w `normalize_chore`. W dniu wpisy
+z godziną idą pierwsze, chronologicznie (`_sort_key`). Przypomnienia odpala Jarvis (`services/reminders.py`),
+nie Domownik – ten tylko przechowuje pola i pokazuje dzwonek (`remind_label`).
+
 **Walidacja:** rzuć `chores.ValidationError` z polskim komunikatem – handler zamieni to na JSON 400.
 
 **Kolejność kluczy coś znaczy** – działy sklepu są ułożone tak, jak się idzie przez sklep. Sortowanie

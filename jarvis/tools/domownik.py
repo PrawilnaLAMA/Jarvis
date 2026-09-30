@@ -6,7 +6,7 @@ from datetime import date
 from difflib import SequenceMatcher
 from typing import Any
 
-from jarvis.polish import EVERY_WEEKDAY_PL, WEEKDAYS, describe_day, join_pl
+from jarvis.polish import EVERY_WEEKDAY_PL, WEEKDAYS, describe_day, duration_pl, join_pl
 from jarvis.services.domownik_client import DomownikError
 from jarvis.tools.base import Tool, ToolContext, ToolError, params
 
@@ -16,6 +16,7 @@ CATEGORIES = ["sprzatanie", "kuchnia", "pranie", "zakupy", "rosliny", "zwierzaki
 WHO = {"ja": ["leon"], "natalia": ["natalia"], "na_zmiane": ["leon", "natalia"], "wspolne": []}
 _WHO_TEXT = {"ja": "dla ciebie", "natalia": "dla Natalii", "na_zmiane": "na zmianę z Natalią", "wspolne": "wspólne"}
 _DATE = {"type": "string", "description": "RRRR-MM-DD"}
+REMIND_MAX_MINUTES = 24 * 60
 _ASCII = str.maketrans("ąćęłńóśźż", "acelnoszz")  # Whisper nie zawsze stawia polskie znaki
 # godzina w tytule („Dentysta 14:00”, „Trening o 18”), gdy model nie poda jej w polu time
 _TITLE_TIME = re.compile(r"\s+(?:(?:o|godz\.?)\s*(\d{1,2}(?:[:.]\d{2})?)|(\d{1,2}:\d{2}))$", re.IGNORECASE)
@@ -197,6 +198,35 @@ def _repeat_payload(args: dict[str, Any], start: date) -> tuple[dict[str, Any], 
     return {"type": "brak"}, ""
 
 
+def _remind_minutes(value: Any) -> int | None:
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        minutes = int(float(value))
+    except (TypeError, ValueError) as e:
+        raise ToolError("Nie zrozumiałem, ile wcześniej przypomnieć.") from e
+    if not 0 <= minutes <= REMIND_MAX_MINUTES:
+        raise ToolError("Przypomnę najwcześniej dzień przed.")
+    return minutes
+
+
+def _remind_text(minutes: int) -> str:
+    """„Przypomnę 30 minut wcześniej.” / „…godzinę…” / „…o czasie.”"""
+    if minutes == 0:
+        return "Przypomnę o czasie."
+    if minutes == REMIND_MAX_MINUTES:
+        return "Przypomnę dzień wcześniej."
+    text = duration_pl(minutes * 60)
+    return f"Przypomnę {text.removeprefix('1 ') if text.startswith('1 godzinę') else text} wcześniej."
+
+
+def _existing_on_day(ctx: ToolContext, title: str, day: date) -> dict[str, Any] | None:
+    """Wpis o tej nazwie już jest tego dnia („dodaj dentystę…”, potem „przypomnij mi o dentyście”)."""
+    items = (_call(ctx.domownik.agenda, day, 1).get("days") or [{}])[0].get("items", [])
+    matches = _best_matches(title, items, threshold=0.8)
+    return matches[0] if len(matches) == 1 else None
+
+
 def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
     title = str(args.get("title", "")).strip()
     if not title:
@@ -206,12 +236,29 @@ def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
         title, time = _split_title_time(title)
     today = ctx.clock().date()
     start = _parse_day(args.get("start_date"), today)
+    remind = _remind_minutes(args.get("remind_before"))
+    if args.get("remind") or remind is not None:
+        # „przypomnij” bez szczegółów – pytamy i nic nie zapisujemy; odpowiedź użytkownika wraca z historii
+        # rozmowy do modelu, który woła narzędzie jeszcze raz z kompletem danych
+        existing = _existing_on_day(ctx, title, start) if time is None else None
+        time = time or (existing or {}).get("time") or None
+        if time is None and remind is None:
+            return f"O której jest {title} i ile wcześniej mam ci przypomnieć?"
+        if time is None:
+            return f"O której godzinie jest {title}?"
+        if remind is None:
+            return f"Ile wcześniej mam ci przypomnieć o {title}?"
+        existing = existing or _existing_on_day(ctx, title, start)
+        if existing:
+            _call(ctx.domownik.update_chore, existing["id"], {"time": time, "remind_before": remind})
+            return f"{existing['title']} {describe_day(start, today)} o {time}. {_remind_text(remind)}"
     repeat, repeat_text = _repeat_payload(args, start)
     who = args.get("who") if args.get("who") in WHO else "wspolne"
     payload = {
         "title": title,
         "start_date": start.isoformat(),
         "time": time,
+        "remind_before": remind,
         "repeat": repeat,
         "assignees": WHO[who],
         "category": args.get("category") if args.get("category") in CATEGORIES else "inne",
@@ -223,7 +270,8 @@ def chore_add(ctx: ToolContext, args: dict[str, Any]) -> str:
         when += f", od {describe_day(start, today)}"
     if time:
         when += f" o {time}"
-    return f"Dodałem do kalendarza: {title}, {when}, {_WHO_TEXT[who]}."
+    reply = f"Dodałem do kalendarza: {title}, {when}, {_WHO_TEXT[who]}."
+    return f"{reply} {_remind_text(remind)}" if remind is not None else reply
 
 
 def _find_chore(ctx: ToolContext, query: str) -> dict[str, Any]:
@@ -338,13 +386,15 @@ def tools() -> list[Tool]:
         ),
         Tool(
             "chore_add",
-            "Dodaje obowiązek/wydarzenie do kalendarza, także przypomnienie („przypomnij mi…”: who=ja, "
-            "bez daty – dziś).",
+            "Dodaje obowiązek/wydarzenie do kalendarza. „Przypomnij…”: remind=true, who=ja; remind_before "
+            "tylko gdy padło, ile wcześniej (nie zgaduj – narzędzie dopyta).",
             params(
                 {
                     "title": {"type": "string", "description": "bez godziny"},
                     "start_date": _DATE,
                     "time": {"type": "string", "description": "GG:MM, jeśli padła godzina („na 15” = 15:00)"},
+                    "remind": {"type": "boolean"},
+                    "remind_before": {"type": "integer", "description": "minuty przed; 0 = o czasie"},
                     "repeat": {"type": "string", "enum": REPEAT_TYPES},
                     "interval": {"type": "integer", "description": "dla co_x_dni"},
                     "weekdays": {"type": "array", "items": {"type": "string", "enum": WEEKDAYS}},

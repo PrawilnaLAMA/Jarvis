@@ -13,6 +13,7 @@ import { initDomownik } from './domownik.js';
 import { initSettings } from './settings.js';
 import { initDesktop } from './desktop.js';
 import { initTimer } from './timer.js';
+import { initReminders } from './reminders.js';
 import { enterUI } from './reveal.js';
 
 const VIEWS = ['jarvis', 'dom', 'settings'];
@@ -63,6 +64,8 @@ initSubtitles(ctx);
 initChat(ctx);
 const timer = initTimer(ctx); // przed initControls – Esc najpierw zamyka nastawianie minutnika
 timer.attach(orb);
+const reminders = initReminders(ctx); // czerwona kula do kliknięcia
+reminders.attach(orb);
 
 const views = {
   jarvis: {
@@ -80,7 +83,7 @@ const views = {
 
 initControls(ctx); // na końcu – Esc najpierw zamyka panele, dopiero potem przerywa mówienie
 // pod zwiniętą kulką duża kula stoi wstrzymana; rozwinięcie przenosi ją z miejsca kulki na jej miejsce
-initDesktop({ ...ctx, orb, timer, isOrbView: () => store.get().view === 'jarvis' });
+initDesktop({ ...ctx, orb, timer, reminders, isOrbView: () => store.get().view === 'jarvis' });
 
 store.subscribe(render);
 render(store.get());

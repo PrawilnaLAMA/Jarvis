@@ -41,6 +41,9 @@ const LOOKS = {
   muted: look([136, 146, 158], [58, 66, 78], { brightness: 0.42, speed: 0.22, breath: 0.02, deform: 0.02, swirl: 0, react: 0 }),
   offline: look([84, 92, 106], [34, 40, 50], { brightness: 0.24, speed: 0.14, breath: 0.015, deform: 0.015, swirl: 0, react: 0 }),
 };
+// Nieodebrane przypomnienie (setAlert): kolory kuli zamieniają się na czerwień, ruch zostaje ze stanu.
+const ALERT_CORE = [255, 70, 86];
+const ALERT_GLOW = [178, 18, 40];
 const NUMERIC_KEYS = ['brightness', 'speed', 'breath', 'deform', 'swirl', 'react'];
 
 // Z którego źródła dźwięku kula czerpie poziom w danym stanie.
@@ -80,6 +83,8 @@ export class Orb {
     this.timerSource = null; // (now) → {progress, elapsed, paused, ringing, editing} | null
     this.timerInfo = null;
     this.timerMix = 0; // 0 → 1 przy pojawieniu się minutnika
+    this.alert = false; // nieodebrane przypomnienie – kula czerwona
+    this.alertMix = 0;
 
     this.cos = new Float32Array(POINTS);
     this.sin = new Float32Array(POINTS);
@@ -121,6 +126,11 @@ export class Orb {
   setActive(active) {
     this.active = Boolean(active);
     this._updateRunning();
+  }
+
+  /** Czerwona kula: jest przypomnienie, którego użytkownik jeszcze nie kliknął. */
+  setAlert(on) {
+    this.alert = Boolean(on);
   }
 
   /** Źródło stanu minutnika – wywoływane co klatkę; null = bez minutnika. */
@@ -188,10 +198,13 @@ export class Orb {
     const { look, target } = this;
     const k = 1 - Math.exp(-dt * 3.2);
     for (const key of NUMERIC_KEYS) look[key] += (target[key] - look[key]) * k;
+    const core = this.alert ? ALERT_CORE : target.core;
+    const glow = this.alert ? ALERT_GLOW : target.glow;
     for (let i = 0; i < 3; i++) {
-      look.core[i] += (target.core[i] - look.core[i]) * k;
-      look.glow[i] += (target.glow[i] - look.glow[i]) * k;
+      look.core[i] += (core[i] - look.core[i]) * k;
+      look.glow[i] += (glow[i] - look.glow[i]) * k;
     }
+    this.alertMix += ((this.alert ? 1 : 0) - this.alertMix) * k;
 
     const goal = this._levelTarget(now);
     const rate = goal > this.level ? ATTACK : RELEASE;
@@ -242,8 +255,10 @@ export class Orb {
     const tm = this.timerMix;
     // koniec minutnika: kula pulsuje dwa razy na sekundę
     const pulse = this.timerInfo && this.timerInfo.ringing ? 0.5 + 0.5 * Math.sin(now * 0.0126) : 0;
+    // przypomnienie: spokojne pulsowanie mniej więcej co 1,5 s
+    const alertPulse = this.alertMix * (0.5 + 0.5 * Math.sin(now * 0.0042));
     // przy rozkładaniu kula na moment rozbłyska
-    const b = look.brightness * (1 + 0.55 * (1 - intro) * (1 - intro)) * (1 + pulse * 0.4 * tm);
+    const b = look.brightness * (1 + 0.55 * (1 - intro) * (1 - intro)) * (1 + pulse * 0.4 * tm) * (1 + 0.3 * alertPulse);
     const radius = base * SPHERE * (1 + Math.sin(this.breathPhase) * look.breath + lvl * 0.2 * m);
     const amp = base * (look.deform + lvl * 0.12) * m;
     const haloR = base * (2.3 + lvl * 0.6);

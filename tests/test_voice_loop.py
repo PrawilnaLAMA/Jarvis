@@ -255,6 +255,20 @@ def test_follow_up_without_wake_word(env, recorder):
     assert recorder.of("state")[-1]["state"] == "idle"
 
 
+def test_question_waits_longer_even_with_follow_up_off(env):
+    loop, speaker, clock, settings = env["loop"], env["speaker"], env["clock"], env["settings"]
+    settings.update({"voice": {"follow_up_seconds": 0}})
+    loop._cfg = settings.get()
+    speaker.on_end(SpeechResult("Dodałem.", "reply", False, "Dodałem."))
+    feed(loop, 0.05, 5)
+    assert loop._recorder is None  # zwykła odpowiedź – bez follow-upu
+
+    speaker.on_end(SpeechResult("Ile wcześniej mam ci przypomnieć?", "reply", False, ""))
+    clock.now += 8  # dłużej niż domyślne 5 s
+    feed(loop, 0.05, 2)
+    assert loop._recorder is not None and env["chimes"] == []
+
+
 def test_interrupted_speech_does_not_open_follow_up(env):
     loop, speaker = env["loop"], env["speaker"]
     speaker.on_end(SpeechResult("x", "reply", True, ""))

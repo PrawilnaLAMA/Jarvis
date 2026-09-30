@@ -128,6 +128,7 @@ const Domownik = (() => {
         <span class="task__meta">
           ${who}${prio}${late}
           <span>${esc(item.repeat_label)}</span>
+          ${item.remind_label ? `<span class="task__remind">${icon('bell')} ${esc(item.remind_label)}</span>` : ''}
           ${turn}${moved}
         </span>
         ${note}
@@ -247,6 +248,16 @@ const Domownik = (() => {
     });
   }
 
+  /** Ustawia listę przypomnień; wartość spoza listy (np. z głosu: 45 min) dostaje własną opcję. */
+  function setReminder(minutes) {
+    const select = fld('remind_before');
+    const value = minutes == null ? '' : String(minutes);
+    if (![...select.options].some((o) => o.value === value)) {
+      select.add(new Option(`${value} min przed`, value));
+    }
+    select.value = value;
+  }
+
   function fillForm(chore) {
     resetForm();
     fld('id').value = chore.id;
@@ -254,6 +265,7 @@ const Domownik = (() => {
     fld('notes').value = chore.notes || '';
     fld('start_date').value = chore.start_date;
     fld('time').value = chore.time || '';
+    setReminder(chore.remind_before);
     fld('end_date').value = chore.end_date || '';
     fld('priority').value = chore.priority || 'normalny';
     fld('archived').checked = !!chore.archived;
@@ -326,6 +338,7 @@ const Domownik = (() => {
       notes: fd.get('notes') || '',
       start_date: fd.get('start_date') || todayISO(),
       time: fd.get('time') || null,
+      remind_before: fd.get('remind_before') === '' ? null : Number(fd.get('remind_before')),
       end_date: fd.get('end_date') || null,
       archived: fd.get('archived') === 'on',
       repeat,

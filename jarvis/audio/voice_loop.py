@@ -37,6 +37,7 @@ WAKE_COOLDOWN = 2.0
 SOFT_WAKE_RATIO = 0.4
 SOFT_WAKE_WINDOW = 3  # tyle ramek czekamy, czy wynik nie przekroczy jednak pełnego progu
 FOLLOW_UP_VOICE_FRAMES = 2
+QUESTION_FOLLOW_UP_SECONDS = 10.0  # po pytaniu Jarvisa („Ile wcześniej przypomnieć?”) czekamy dłużej
 MIC_LEVEL_REFERENCE = 0.05
 MIN_VOICE_LEVEL = 0.004
 
@@ -340,8 +341,14 @@ class VoiceLoop:
     # --- pomocnicze ---
 
     def _on_speech_end(self, result) -> None:
-        if not result.interrupted and self._cfg.voice.follow_up_seconds > 0:
-            self._follow_up_until = self._clock() + self._cfg.voice.follow_up_seconds
+        if result.interrupted:
+            return
+        seconds = self._cfg.voice.follow_up_seconds
+        if result.kind == "reply" and result.text.rstrip().endswith("?"):
+            # Jarvis o coś zapytał – odpowiedź bez „Hej Jarvis”, nawet gdy follow-up jest wyłączony
+            seconds = max(seconds, QUESTION_FOLLOW_UP_SECONDS)
+        if seconds > 0:
+            self._follow_up_until = self._clock() + seconds
 
     def _on_settings_changed(self, event: Event) -> None:
         previous = self._cfg

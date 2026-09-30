@@ -159,3 +159,28 @@ def test_chore_add_keeps_time_separately(ctx):
     assert ctx.domownik.added[-1]["title"] == "Urodziny Asi 15.03" and ctx.domownik.added[-1]["time"] is None
     with pytest.raises(ToolError, match="godziny"):
         chore_add(ctx, {"title": "X", "time": "później"})
+
+
+def test_remind_asks_until_it_knows_everything(ctx):
+    assert chore_add(ctx, {"title": "Dentysta", "remind": True, "start_date": "2025-11-04"}) == \
+        "O której jest Dentysta i ile wcześniej mam ci przypomnieć?"
+    assert chore_add(ctx, {"title": "Dentysta", "remind": True, "time": "15"}) == \
+        "Ile wcześniej mam ci przypomnieć o Dentysta?"
+    assert chore_add(ctx, {"title": "Dentysta", "remind": True, "remind_before": 30}) == \
+        "O której godzinie jest Dentysta?"
+    assert ctx.domownik.added == []  # pytania niczego nie zapisują
+
+    reply = chore_add(ctx, {"title": "Dentysta", "remind": True, "time": "15:00", "remind_before": 30, "who": "ja"})
+    assert reply == "Dodałem do kalendarza: Dentysta, dziś o 15:00, dla ciebie. Przypomnę 30 minut wcześniej."
+    assert ctx.domownik.added[-1]["remind_before"] == 30
+    assert chore_add(ctx, {"title": "Pizza", "time": "12:20", "remind_before": 0}).endswith("Przypomnę o czasie.")
+    assert chore_add(ctx, {"title": "Pociąg", "time": "8:00", "remind_before": 60}).endswith(
+        "Przypomnę godzinę wcześniej.")
+
+
+def test_remind_updates_existing_entry(ctx):
+    ctx.domownik.agenda_data = {"days": [{"date": "2025-11-03", "items": [
+        {"id": "d1", "title": "Wizyta u dentysty", "time": "15:00"}]}], "overdue": []}
+    reply = chore_add(ctx, {"title": "dentysta", "remind": True, "remind_before": 15})
+    assert reply == "Wizyta u dentysty dziś o 15:00. Przypomnę 15 minut wcześniej."
+    assert ctx.domownik.updated == [("d1", {"time": "15:00", "remind_before": 15})] and ctx.domownik.added == []

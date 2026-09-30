@@ -981,6 +981,11 @@ input[type="time"].input {
   height: 100%;
 }
 
+/* nieodebrane przypomnienie (js/reminders.js) – kula czerwona, klik odbiera */
+.orb-wrap.has-reminder {
+  cursor: pointer;
+}
+
 /* --- minutnik w kuli (js/timer.js, js/clock.js) --- */
 
 .orb-wrap {

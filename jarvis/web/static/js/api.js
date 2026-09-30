@@ -88,6 +88,8 @@ export const api = {
   timerStart: (seconds, label) => request('POST', 'api/timers', { seconds, label }),
   timerAction: (id, action, seconds) => request('POST', `api/timers/${encodeURIComponent(id)}`, { action, seconds }),
 
+  remindersAck: () => request('POST', 'api/reminders/ack'),
+
   domownikStatus: () => request('GET', 'api/domownik/status'),
   messengerThreads: () => request('GET', 'api/messenger/threads'),
   messengerWindow: (visible) => request('POST', 'api/messenger/window', { visible }),

@@ -18,6 +18,7 @@ from jarvis.services.domownik_client import DomownikClient
 from jarvis.services.domownik_server import DomownikServer
 from jarvis.services.inbox import Inbox
 from jarvis.services.messenger import MessengerService
+from jarvis.services.reminders import Reminders
 from jarvis.services.timers import Timers
 from jarvis.settings import Secrets, SettingsStore
 from jarvis.state import StatusTracker
@@ -59,6 +60,8 @@ class JarvisApp:
             on_limit_wait=lambda s: self.bus.notice(f"Limit zapytań do modelu – czekam {s:.0f} s…", "warning"),
         )
         self.timers = Timers(self.bus, self.announce)  # odliczanie w kuli; mówi, gdy minie czas
+        # przypomnienia z kalendarza: dźwięk, głos i czerwona kula aż do kliknięcia
+        self.reminders = Reminders(self.bus, self.domownik, data_dir / "reminders.json", self.alert)
         tool_context = ToolContext(
             settings=self.settings,
             bus=self.bus,
@@ -94,6 +97,7 @@ class JarvisApp:
         if self.voice:
             self.voice.start(self.stop_event)
         threading.Thread(target=self.discord_monitor.run, args=(self.stop_event,), name="discord", daemon=True).start()
+        threading.Thread(target=self.reminders.run, args=(self.stop_event,), name="reminders", daemon=True).start()
         self.messenger.start(self.stop_event)
         if not self.llm.configured:
             self.bus.notice("Brak klucza GROQ_API_KEY – dodaj go w Ustawieniach, żeby Jarvis mógł odpowiadać.",
@@ -138,6 +142,14 @@ class JarvisApp:
     def announce(self, text: str) -> None:
         """Komunikat systemowy (np. wiadomość z Discorda) – czytany na głos, jeśli jest dźwięk."""
         if self.voice:
+            self.voice.say(text, "notice")
+
+    def alert(self, text: str) -> None:
+        """Przypomnienie: sygnał dźwiękowy, potem komunikat głosem."""
+        if self.voice:
+            from jarvis.audio.chime import REMINDER
+
+            self.voice.player.play_effect(REMINDER)
             self.voice.say(text, "notice")
 
     # --- stan ---
