@@ -106,6 +106,7 @@ def env(tmp_path, bus, recorder):
     )
     parts["loop"] = loop
     parts["settings"] = settings
+    parts["recorder"] = recorder
     return parts
 
 
@@ -157,15 +158,39 @@ def test_below_threshold_or_during_cooldown_is_ignored(env):
     loop.process_frame(SILENCE)
     assert loop._recorder is None
     wake.next_score = 0.9
-    loop.process_frame(SILENCE)
+    loop.process_frame(frame(0.05))
+    assert loop._recorder is not None
     loop._recorder = None  # porzucamy nagranie
     wake.next_score = 0.9
-    loop.process_frame(SILENCE)  # w czasie blokady (2 s) nie reagujemy ponownie
+    loop.process_frame(frame(0.05))  # w czasie blokady (2 s) nie reagujemy ponownie
     assert loop._recorder is None
     clock.now += 3
     wake.next_score = 0.9
-    loop.process_frame(SILENCE)
+    loop.process_frame(frame(0.05))
     assert loop._recorder is not None
+
+
+def test_wake_word_in_silence_is_a_false_alarm(env, recorder):
+    loop, wake = env["loop"], env["wake"]
+    feed(loop, 0.0, 15)  # ponad sekunda ciszy – VAD nie słyszał mowy
+    wake.next_score = 0.9  # detektor zadziałał na szumie mikrofonu
+    loop.process_frame(SILENCE)
+    assert loop._recorder is None and env["chimes"] == [] and wake.resets == 1
+    assert recorder.of("state")[-1]["state"] == "idle"
+    wake.next_score = 0.9  # zaraz potem prawdziwe „Hej Jarvis” (bez blokady po fałszywym alarmie)
+    loop.process_frame(frame(0.05))
+    assert loop._recorder is not None and env["chimes"] == [1]
+
+
+def test_soft_wake_in_silence_never_reaches_whisper(env, recorder):
+    loop, wake, stt = env["loop"], env["wake"], env["stt"]
+    wake.next_score = 0.25  # słaby wynik na szumie
+    loop.process_frame(SILENCE)
+    feed(loop, 0.0, 15)
+    assert loop._recorder is None and loop._jobs.empty() and stt.calls == 0
+    assert "listening" not in [s["state"] for s in recorder.of("state")]
+    loop.process_frame(SILENCE)
+    assert env["chimes"] == []  # Whisper nie miał czego powtórzyć jako „Hej Jarvis.”
 
 
 def start_speaking(env, echo_level=0.03, output=0.1, frames=20):
@@ -296,6 +321,7 @@ def soft_wake_recording(env, text):
     feed(loop, 0.05, 3)  # okno oczekiwania na pełne wykrycie
     assert loop._recorder is not None and loop._record_mode == "tentative"
     assert env["chimes"] == []  # bez sygnału – jeszcze nie wiemy, czy to do nas
+    assert "listening" not in [s["state"] for s in env["recorder"].of("state")]  # i bez „słucham” na kuli
     feed(loop, 0.05, 5)
     feed(loop, 0.0, 12)
     stt.text = text

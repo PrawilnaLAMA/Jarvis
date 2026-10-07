@@ -20,7 +20,7 @@ import numpy as np
 
 from jarvis.audio.bargein import DUCK_GAIN, DuckTest, EchoGate
 from jarvis.audio.devices import rms, ui_level
-from jarvis.audio.recorder import UtteranceRecorder
+from jarvis.audio.recorder import SPEECH_ON, UtteranceRecorder
 from jarvis.audio.stt import STTError, vocabulary_prompt
 from jarvis.audio.transcript import clean_transcript, has_wake_phrase, is_echo
 from jarvis.events import Event, EventBus
@@ -36,6 +36,11 @@ WAKE_COOLDOWN = 2.0
 # Wynik powyżej progu × SOFT_WAKE_RATIO uruchamia ciche nagranie, a Whisper sprawdza, czy padło „Jarvis”.
 SOFT_WAKE_RATIO = 0.4
 SOFT_WAKE_WINDOW = 3  # tyle ramek czekamy, czy wynik nie przekroczy jednak pełnego progu
+# „Hej Jarvis” to mowa: wykrycie liczy się tylko, gdy VAD słyszał mowę w ostatniej ~1 s. Bez tego w ciszy
+# detektor potrafi dać fałszywy alarm na szumie mikrofonu, a Whisper na ciszy powtarza podpowiedź „Hej Jarvis.”.
+WAKE_SPEECH_WINDOW = 12  # ramek po 80 ms
+WAKE_SPEECH_FRAMES = 1  # pełne wykrycie
+SOFT_WAKE_SPEECH_FRAMES = 2  # miękkie – słabszy dowód, więc więcej mowy
 FOLLOW_UP_VOICE_FRAMES = 2
 QUESTION_FOLLOW_UP_SECONDS = 10.0  # po pytaniu Jarvisa („Ile wcześniej przypomnieć?”) czekamy dłużej
 MIC_LEVEL_REFERENCE = 0.05
@@ -108,6 +113,7 @@ class VoiceLoop:
         self._voice_frames = 0
         self._trigger_requested = False
         self._soft_frames: int | None = None
+        self._recent_vad: deque[float] = deque(maxlen=WAKE_SPEECH_WINDOW)
 
         speaker.on_end = self._on_speech_end
         bus.subscribe(self._on_settings_changed, {"settings.changed"})
@@ -153,6 +159,7 @@ class VoiceLoop:
         level = rms(frame)
         wake_score = self._wake.score(frame)
         vad = self._vad.probability(frame)
+        self._recent_vad.append(vad)
         self._bus.publish(
             "audio.level", source="mic", level=ui_level(level, MIC_LEVEL_REFERENCE), wake=round(wake_score, 3)
         )
@@ -164,7 +171,12 @@ class VoiceLoop:
         self._preroll.append(frame)
 
         wake_hit = wake_score >= self._cfg.voice.wake_threshold and now >= self._wake_blocked_until
+        if wake_hit and self._speech_frames() < WAKE_SPEECH_FRAMES:
+            log.info("Odrzucono „Hej Jarvis” bez mowy (wynik %.2f) – fałszywy alarm na szumie", wake_score)
+            self._wake.reset()
+            wake_hit = False
         if wake_hit:
+            log.info("Słowo wywołania (wynik %.2f)", wake_score)
             self._wake.reset()
             self._wake_blocked_until = now + WAKE_COOLDOWN
 
@@ -190,7 +202,11 @@ class VoiceLoop:
             self._soft_frames += 1
             if self._soft_frames >= SOFT_WAKE_WINDOW:
                 self._soft_frames = None
-                self._start_recording("tentative", speech_ongoing=True)
+                if self._speech_frames() < SOFT_WAKE_SPEECH_FRAMES:
+                    log.debug("Miękkie wykrycie bez mowy – pomijam")
+                    return
+                # po cichu: kula pokaże „słucham” dopiero, gdy Whisper potwierdzi „Jarvis”
+                self._start_recording("tentative", speech_ongoing=True, quiet=True)
             return
         if wake_score >= self._cfg.voice.wake_threshold * SOFT_WAKE_RATIO and now >= self._wake_blocked_until:
             self._soft_frames = 0
@@ -259,6 +275,7 @@ class VoiceLoop:
         wait_for_speech: bool = False,
         speech_ongoing: bool = False,
         barge_in: BargeIn | None = None,
+        quiet: bool = False,
     ) -> None:
         recorder = UtteranceRecorder(preroll=list(self._preroll)[-preroll:])
         # po „Hej Jarvis” czekamy na nową mowę (użytkownik może zrobić pauzę przed poleceniem);
@@ -269,7 +286,8 @@ class VoiceLoop:
         self._recorder = recorder
         self._record_mode = mode
         self._barge_in = barge_in
-        self._set_listener("listening")
+        if not quiet:
+            self._set_listener("listening")
 
     def _continue_recording(self, frame: np.ndarray, vad: float, level: float) -> None:
         recorder = self._recorder
@@ -355,6 +373,10 @@ class VoiceLoop:
         self._cfg = self._settings.get()
         if previous.voice.listen != self._cfg.voice.listen:
             self.set_muted(not self._cfg.voice.listen)
+
+    def _speech_frames(self) -> int:
+        """Ile ramek z mową było w ostatniej ~1 s."""
+        return sum(p >= SPEECH_ON for p in self._recent_vad)
 
     def _consume_trigger(self) -> bool:
         triggered, self._trigger_requested = self._trigger_requested, False
